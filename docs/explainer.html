@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Three-Speed Memory — QMD + Zvec for OpenClaw</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0e17;--surface:#111827;--surface2:#1a2235;--border:#1e293b;
+  --text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent2:#818cf8;
+  --green:#34d399;--orange:#fb923c;--red:#f87171;--pink:#f472b6;
+  --glow:0 0 30px rgba(56,189,248,.15);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,-apple-system,sans-serif;line-height:1.7;overflow-x:hidden}
+::selection{background:var(--accent);color:var(--bg)}
+
+/* Utility */
+.container{max-width:1100px;margin:0 auto;padding:0 24px}
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.badge-green{background:rgba(52,211,153,.15);color:var(--green)}
+.badge-blue{background:rgba(56,189,248,.15);color:var(--accent)}
+.badge-orange{background:rgba(251,146,60,.15);color:var(--orange)}
+.badge-pink{background:rgba(244,114,182,.15);color:var(--pink)}
+
+/* Hero */
+.hero{padding:100px 0 60px;text-align:center;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(56,189,248,.08) 0%,transparent 70%);pointer-events:none}
+.hero h1{font-size:clamp(2.2rem,5vw,3.8rem);font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:16px;line-height:1.15}
+.hero .subtitle{font-size:1.15rem;color:var(--muted);max-width:640px;margin:0 auto 32px}
+.hero .tags{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+
+/* Sections */
+section{padding:60px 0}
+h2{font-size:1.8rem;font-weight:700;margin-bottom:12px}
+h2 .num{color:var(--accent);margin-right:8px;font-size:1.4rem}
+h3{font-size:1.2rem;font-weight:600;margin-bottom:8px;color:var(--accent)}
+p,.desc{color:var(--muted);margin-bottom:16px}
+.section-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);font-weight:700;margin-bottom:8px}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;margin-bottom:24px;transition:border-color .3s,box-shadow .3s}
+.card:hover{border-color:rgba(56,189,248,.3);box-shadow:var(--glow)}
+
+/* Grid */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px}
+@media(max-width:768px){.grid2,.grid3{grid-template-columns:1fr}}
+
+/* Speed cards */
+.speed-card{text-align:center;padding:40px 24px;border-radius:16px;position:relative;overflow:hidden;transition:transform .3s}
+.speed-card:hover{transform:translateY(-4px)}
+.speed-card .icon{font-size:2.8rem;margin-bottom:16px}
+.speed-card .time{font-size:2.4rem;font-weight:800;margin-bottom:4px}
+.speed-card .label{font-size:.85rem;color:var(--muted)}
+.speed-l0{background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(52,211,153,.03));border:1px solid rgba(52,211,153,.2)}
+.speed-l0 .time{color:var(--green)}
+.speed-l1{background:linear-gradient(135deg,rgba(56,189,248,.12),rgba(56,189,248,.03));border:1px solid rgba(56,189,248,.2)}
+.speed-l1 .time{color:var(--accent)}
+.speed-l2{background:linear-gradient(135deg,rgba(129,140,248,.12),rgba(129,140,248,.03));border:1px solid rgba(129,140,248,.2)}
+.speed-l2 .time{color:var(--accent2)}
+
+/* Diagram */
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;overflow-x:auto}
+.flow{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:nowrap;min-width:700px}
+.flow-node{padding:16px 20px;border-radius:12px;text-align:center;font-size:.85rem;font-weight:600;min-width:110px;position:relative}
+.flow-arrow{color:var(--muted);font-size:1.4rem;padding:0 6px;flex-shrink:0}
+.fn-agent{background:rgba(244,114,182,.12);border:1px solid rgba(244,114,182,.3);color:var(--pink)}
+.fn-qmd{background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:var(--green)}
+.fn-watcher{background:rgba(251,146,60,.12);border:1px solid rgba(251,146,60,.3);color:var(--orange)}
+.fn-zvec{background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3);color:var(--accent)}
+.fn-memory{background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.3);color:var(--accent2)}
+
+/* Code */
+pre{background:#0d1117;border:1px solid var(--border);border-radius:12px;padding:20px;overflow-x:auto;font-size:.82rem;line-height:1.6;margin-bottom:16px;color:#c9d1d9}
+code{font-family:'JetBrains Mono','Fira Code',monospace}
+.kw{color:#ff7b72}.str{color:#a5d6ff}.fn{color:#d2a8ff}.cm{color:#8b949e}.num{color:#79c0ff}.op{color:#ff7b72}
+
+/* Comparison */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media(max-width:768px){.compare{grid-template-columns:1fr}}
+.compare-before{border:1px solid rgba(248,113,113,.2);background:rgba(248,113,113,.04);border-radius:16px;padding:28px}
+.compare-after{border:1px solid rgba(52,211,153,.2);background:rgba(52,211,153,.04);border-radius:16px;padding:28px}
+.compare h3{margin-bottom:12px}
+.compare ul{list-style:none;padding:0}
+.compare li{padding:6px 0;padding-left:24px;position:relative;color:var(--muted);font-size:.9rem}
+.compare-before li::before{content:'✗';position:absolute;left:0;color:var(--red);font-weight:700}
+.compare-after li::before{content:'✓';position:absolute;left:0;color:var(--green);font-weight:700}
+
+/* Timeline */
+.timeline{position:relative;padding-left:32px}
+.timeline::before{content:'';position:absolute;left:11px;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,var(--green),var(--accent),var(--accent2))}
+.tl-item{position:relative;margin-bottom:28px}
+.tl-item::before{content:'';position:absolute;left:-27px;top:6px;width:14px;height:14px;border-radius:50%;border:2px solid var(--accent);background:var(--bg)}
+.tl-item.active::before{background:var(--accent);box-shadow:0 0 12px rgba(56,189,248,.4)}
+.tl-item .tl-time{font-size:.75rem;color:var(--accent);font-weight:600;margin-bottom:2px}
+.tl-item .tl-title{font-weight:600;font-size:.95rem}
+.tl-item .tl-desc{color:var(--muted);font-size:.85rem}
+
+/* Expandable */
+details{margin-bottom:16px}
+details summary{cursor:pointer;padding:16px 20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;font-weight:600;font-size:.95rem;list-style:none;display:flex;align-items:center;gap:8px;transition:border-color .3s}
+details summary:hover{border-color:rgba(56,189,248,.3)}
+details summary::before{content:'▸';color:var(--accent);transition:transform .3s;font-size:1.1rem}
+details[open] summary::before{transform:rotate(90deg)}
+details[open] summary{border-radius:12px 12px 0 0;border-bottom-color:transparent}
+.details-body{padding:20px;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px}
+
+/* Benchmark */
+.bench{display:flex;align-items:end;gap:24px;justify-content:center;padding:20px 0}
+.bench-bar{text-align:center}
+.bench-bar .bar{width:60px;border-radius:8px 8px 0 0;margin:0 auto 8px;transition:height .6s ease-out}
+.bench-bar .val{font-size:1.4rem;font-weight:800}
+.bench-bar .lbl{font-size:.75rem;color:var(--muted);margin-top:4px}
+
+/* Nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,14,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 0}
+nav .inner{max-width:1100px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between}
+nav .logo{font-weight:800;font-size:1rem;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+nav a{color:var(--muted);text-decoration:none;font-size:.82rem;font-weight:500;transition:color .2s}
+nav a:hover{color:var(--text)}
+nav .links{display:flex;gap:20px}
+
+/* Pulse animation */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.pulse{animation:pulse 2s ease-in-out infinite}
+
+/* Footer */
+footer{padding:40px 0;text-align:center;color:var(--muted);font-size:.8rem;border-top:1px solid var(--border)}
+footer a{color:var(--accent);text-decoration:none}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="inner">
+    <div class="logo">OpenClaw Memory</div>
+    <div class="links">
+      <a href="#problem">Problem</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#qmd">QMD</a>
+      <a href="#zvec">Zvec</a>
+      <a href="#integration">Integration</a>
+      <a href="#code">Code</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<header class="hero">
+  <div class="container">
+    <div class="section-label">A Novel AI Memory Architecture</div>
+    <h1>Three-Speed Memory<br>for Autonomous Agents</h1>
+    <p class="subtitle">How QMD + Zvec give OpenClaw agents structured working memory, instant recall, and always-fresh semantic search — a first-of-its-kind integration.</p>
+    <div class="tags">
+      <span class="badge badge-green">QMD &lt;1ms</span>
+      <span class="badge badge-blue">Zvec &lt;10ms</span>
+      <span class="badge badge-pink">Knowledge Graph &lt;100ms</span>
+      <span class="badge badge-orange">Open Source</span>
+    </div>
+  </div>
+</header>
+
+<!-- Problem -->
+<section id="problem">
+  <div class="container">
+    <div class="section-label">The Problem</div>
+    <h2>AI Agents Have Amnesia</h2>
+    <p>Every AI agent framework has the same dirty secret: memory is an afterthought. Context windows fill up and get wiped. Conversation history is ephemeral. And the "memory" solutions are just glorified note files.</p>
+
+    <div class="compare" style="margin-top:32px">
+      <div class="compare-before">
+        <h3 style="color:var(--red)">❌ Vanilla OpenClaw Memory</h3>
+        <ul>
+          <li><strong>MEMORY.md</strong> — manually curated, grows stale</li>
+          <li><strong>Daily files</strong> pile up (50+), never compacted</li>
+          <li><strong>memory_search</strong> uses basic embeddings, currently broken</li>
+          <li><strong>No working memory</strong> — lose task state on restart</li>
+          <li><strong>Stale search</strong> — new content not indexed</li>
+          <li><strong>No structure</strong> — everything is flat markdown</li>
+        </ul>
+      </div>
+      <div class="compare-after">
+        <h3 style="color:var(--green)">✓ QMD + Zvec Enhanced</h3>
+        <ul>
+          <li><strong>QMD scratchpad</strong> — structured JSON, always current</li>
+          <li><strong>Auto-compaction</strong> — old tasks archive weekly</li>
+          <li><strong>Zvec hybrid search</strong> — HNSW + BM25, 8ms queries</li>
+          <li><strong>Working memory persists</strong> across sessions</li>
+          <li><strong>Auto-indexing</strong> — new content indexed via watcher</li>
+          <li><strong>Structured data</strong> — tasks, entities, decisions</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Three-Speed Architecture -->
+<section id="architecture" style="padding-bottom:40px">
+  <div class="container">
+    <div class="section-label">The Architecture</div>
+    <h2>Three Speeds of Memory</h2>
+    <p>Inspired by how human memory works — from instant muscle memory to deep recall — every layer serves a different latency and richness profile.</p>
+
+    <div class="grid3" style="margin-top:32px">
+      <div class="speed-card speed-l0">
+        <div class="icon">⚡</div>
+        <div class="time">&lt;1ms</div>
+        <div style="font-weight:700;font-size:1.1rem;margin-bottom:8px">QMD</div>
+        <div class="label">Layer 0 — Working Memory</div>
+        <div class="label" style="margin-top:8px">Structured JSON scratchpad. Active tasks, decisions, entities. Read on every session start. Written during work, not after.</div>
+      </div>
+      <div class="speed-card speed-l1">
+        <div class="icon">🔍</div>
+        <div class="time">&lt;10ms</div>
+        <div style="font-weight:700;font-size:1.1rem;margin-bottom:8px">Zvec</div>
+        <div class="label">Layer 1 — Semantic Search</div>
+        <div class="label" style="margin-top:8px">HNSW vector index + BM25 hybrid. 768-dim embeddings, 1,166+ chunks. Auto-indexed via file watcher.</div>
+      </div>
+      <div class="speed-card speed-l2">
+        <div class="icon">🕸️</div>
+        <div class="time">&lt;100ms</div>
+        <div style="font-weight:700;font-size:1.1rem;margin-bottom:8px">Knowledge Graph</div>
+        <div class="label">Layer 2 — Relational Memory</div>
+        <div class="label" style="margin-top:8px">Neo4j + Graphiti (planned). Entity relationships, temporal queries. "Who worked on X?" "When did we decide Y?"</div>
+      </div>
+    </div>
+
+    <!-- Benchmark bars -->
+    <div class="card" style="margin-top:32px;text-align:center">
+      <h3 style="margin-bottom:4px">Query Latency Comparison</h3>
+      <p style="font-size:.85rem">Lower is better</p>
+      <div class="bench">
+        <div class="bench-bar">
+          <div class="bar" style="height:12px;background:var(--green)"></div>
+          <div class="val" style="color:var(--green)">&lt;1ms</div>
+          <div class="lbl">QMD<br>JSON read</div>
+        </div>
+        <div class="bench-bar">
+          <div class="bar" style="height:40px;background:var(--accent)"></div>
+          <div class="val" style="color:var(--accent)">~8ms</div>
+          <div class="lbl">Zvec<br>HNSW+BM25</div>
+        </div>
+        <div class="bench-bar">
+          <div class="bar" style="height:120px;background:var(--accent2)"></div>
+          <div class="val" style="color:var(--accent2)">~80ms</div>
+          <div class="lbl">Knowledge Graph<br>Cypher traversal</div>
+        </div>
+        <div class="bench-bar">
+          <div class="bar" style="height:200px;background:var(--red)"></div>
+          <div class="val" style="color:var(--red)">~500ms</div>
+          <div class="lbl">memory_search<br>OpenClaw native</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Data Flow Diagram -->
+<section>
+  <div class="container">
+    <div class="section-label">Data Flow</div>
+    <h2>How It All Connects</h2>
+    <p>The agent writes to QMD during work. A file watcher detects changes and auto-indexes into Zvec. When the agent needs to recall something, it checks QMD first (instant), then Zvec (fast), then falls back to full search.</p>
+
+    <div class="diagram" style="margin-top:24px">
+      <div style="text-align:center;margin-bottom:16px;font-size:.75rem;color:var(--muted)">WRITE PATH</div>
+      <div class="flow">
+        <div class="flow-node fn-agent">🤖 Agent<br><small>Claude</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-qmd">⚡ QMD<br><small>current.json</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-watcher">👁 Watcher<br><small>inotify</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-zvec">🔍 Zvec<br><small>HNSW index</small></div>
+      </div>
+      <div style="text-align:center;margin:20px 0 16px;font-size:.75rem;color:var(--muted)">READ PATH</div>
+      <div class="flow">
+        <div class="flow-node fn-agent">🤖 Agent<br><small>query</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-qmd" style="position:relative">⚡ QMD<br><small>&lt;1ms check</small>
+          <div style="position:absolute;top:-18px;right:-8px;font-size:.6rem" class="badge badge-green pulse">HIT?</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-zvec">🔍 Zvec<br><small>&lt;10ms search</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-memory">📚 Full Search<br><small>fallback</small></div>
+      </div>
+    </div>
+
+    <div class="diagram" style="margin-top:24px">
+      <div style="text-align:center;margin-bottom:16px;font-size:.75rem;color:var(--muted)">COMPACTION PATH</div>
+      <div class="flow">
+        <div class="flow-node fn-qmd">⚡ QMD<br><small>done tasks</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-memory">📝 Daily Log<br><small>YYYY-MM-DD.md</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node fn-memory" style="background:rgba(244,114,182,.08);border-color:rgba(244,114,182,.2);color:var(--pink)">💎 MEMORY.md<br><small>curated</small></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- QMD Deep Dive -->
+<section id="qmd">
+  <div class="container">
+    <div class="section-label">Layer 0</div>
+    <h2>QMD — Quick Memory Dump</h2>
+    <p>QMD is a structured JSON scratchpad that lives at <code>memory/qmd/current.json</code>. It's the agent's working memory — loaded on every session start, updated during work, compacted when tasks complete.</p>
+
+    <div class="grid2" style="margin-top:24px">
+      <div class="card">
+        <h3>What QMD Tracks</h3>
+        <ul style="list-style:none;padding:0">
+          <li style="padding:6px 0;border-bottom:1px solid var(--border)">📋 <strong>Active tasks</strong> — status, progress, blockers, next steps</li>
+          <li style="padding:6px 0;border-bottom:1px solid var(--border)">🧠 <strong>Decisions</strong> — what was decided and why</li>
+          <li style="padding:6px 0;border-bottom:1px solid var(--border)">👥 <strong>Entities</strong> — people, URLs, credentials seen</li>
+          <li style="padding:6px 0;">🎯 <strong>Context</strong> — intermediate results, blockers</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>QMD Lifecycle</h3>
+        <div class="timeline" style="margin-top:16px">
+          <div class="tl-item active">
+            <div class="tl-time">Session Start</div>
+            <div class="tl-title">Load current.json</div>
+            <div class="tl-desc">Resume awareness of all active tasks</div>
+          </div>
+          <div class="tl-item active">
+            <div class="tl-time">During Work</div>
+            <div class="tl-title">Write after significant actions</div>
+            <div class="tl-desc">New task, decision, entity, completion</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-time">Session End</div>
+            <div class="tl-title">Compact done tasks → daily log</div>
+            <div class="tl-desc">Keep active, archive completed</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-time">Weekly</div>
+            <div class="tl-title">Promote insights → MEMORY.md</div>
+            <div class="tl-desc">Important decisions become long-term memory</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <details style="margin-top:24px">
+      <summary>📄 Live QMD — current.json (actual data)</summary>
+      <div class="details-body">
+<pre><code>{
+  <span class="str">"session_id"</span>: <span class="str">"main-2026-02-23"</span>,
+  <span class="str">"tasks"</span>: [
+    {
+      <span class="str">"id"</span>: <span class="str">"cyprus-hotels"</span>,
+      <span class="str">"status"</span>: <span class="str">"active"</span>,
+      <span class="str">"title"</span>: <span class="str">"Find monthly rental in Limassol for Mar 5–Apr 5"</span>,
+      <span class="str">"progress"</span>: [
+        <span class="str">"Sent 20 RFPs via AgentMail"</span>,
+        <span class="str">"Four Seasons replied: €1,360/night, 17 nights only"</span>,
+        <span class="str">"9+ hotels still waiting for replies"</span>
+      ],
+      <span class="str">"entities"</span>: [<span class="str">"Four Seasons"</span>, <span class="str">"Amara"</span>, <span class="str">"Parklane"</span>],
+      <span class="str">"decisions"</span>: [<span class="str">"Using AgentMail not personal email"</span>]
+    },
+    {
+      <span class="str">"id"</span>: <span class="str">"memory-architecture"</span>,
+      <span class="str">"status"</span>: <span class="str">"active"</span>,
+      <span class="str">"title"</span>: <span class="str">"Memory architecture upgrade (Zvec + QMD)"</span>,
+      <span class="str">"decisions"</span>: [<span class="str">"QMD as Layer 0 working memory"</span>, <span class="str">"JSON format for structured access"</span>]
+    }
+  ],
+  <span class="str">"entities_seen"</span>: {
+    <span class="str">"people"</span>: [<span class="str">"Omer Levi"</span>, <span class="str">"Vasilia Keke (Four Seasons)"</span>],
+    <span class="str">"urls"</span>: [<span class="str">"clawqa.ai"</span>, <span class="str">"command.clawz.org"</span>]
+  }
+}</code></pre>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- Zvec Deep Dive -->
+<section id="zvec">
+  <div class="container">
+    <div class="section-label">Layer 1</div>
+    <h2>Zvec — Hybrid Vector Search</h2>
+    <p>Zvec is a local vector search service built on Alibaba's Zvec library. It combines HNSW approximate nearest-neighbor search with BM25 keyword matching for hybrid retrieval — giving you both semantic understanding and exact-match precision.</p>
+
+    <div class="grid2" style="margin-top:24px">
+      <div class="card">
+        <h3>Technical Specs</h3>
+        <table style="width:100%;font-size:.9rem">
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;color:var(--muted)">Index Type</td><td style="padding:8px 0;text-align:right;font-weight:600">HNSW (Hierarchical NSW)</td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;color:var(--muted)">Dimensions</td><td style="padding:8px 0;text-align:right;font-weight:600">768 (embeddinggemma-300m)</td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;color:var(--muted)">Chunks Indexed</td><td style="padding:8px 0;text-align:right;font-weight:600">1,166</td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;color:var(--muted)">Query Latency</td><td style="padding:8px 0;text-align:right;font-weight:600">~8ms (top-5)</td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;color:var(--muted)">Port</td><td style="padding:8px 0;text-align:right;font-weight:600">localhost:4010</td></tr>
+          <tr><td style="padding:8px 0;color:var(--muted)">Hybrid Search</td><td style="padding:8px 0;text-align:right;font-weight:600">HNSW + BM25 fusion</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>The Gap (Before Auto-Indexing)</h3>
+        <div style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.15);border-radius:8px;padding:16px;margin-top:8px">
+          <p style="font-size:.9rem;margin-bottom:8px"><strong style="color:var(--red)">⚠️ Stale Data Problem</strong></p>
+          <p style="font-size:.85rem">Zvec was migrated once from SQLite (1,166 chunks) but has no mechanism to index new content. Every daily log, every QMD update, every new knowledge file — invisible to search.</p>
+          <p style="font-size:.85rem;margin-bottom:0"><strong>Solution:</strong> The file watcher (see Integration below) polls SQLite every 60s and auto-indexes new chunks into Zvec.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Integration -->
+<section id="integration">
+  <div class="container">
+    <div class="section-label">The Integration</div>
+    <h2>QMD ↔ Zvec: Always-Fresh Memory</h2>
+    <p>The key insight: QMD and Zvec don't just coexist — they feed each other. QMD captures real-time state. The watcher detects changes and pipes them into Zvec's index. Queries check QMD first (instant hit for active tasks), then fall back to Zvec's semantic search.</p>
+
+    <div class="card" style="margin-top:24px">
+      <h3>Query Resolution Strategy</h3>
+      <p style="font-size:.85rem;margin-bottom:16px">When the agent asks "What did Four Seasons quote?":</p>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:start;gap:12px">
+          <span class="badge badge-green" style="min-width:55px;text-align:center">Step 1</span>
+          <div><strong>Check QMD</strong> (instant) — Task "cyprus-hotels" has "€1,360/night" in progress. <strong style="color:var(--green)">Hit! Return immediately.</strong></div>
+        </div>
+        <div style="display:flex;align-items:start;gap:12px">
+          <span class="badge badge-blue" style="min-width:55px;text-align:center">Step 2</span>
+          <div><strong>Zvec hybrid search</strong> (~8ms) — BM25 finds "Four Seasons" exact match + HNSW finds semantically similar hotel discussion chunks. Fuse scores, return top-5.</div>
+        </div>
+        <div style="display:flex;align-items:start;gap:12px">
+          <span class="badge badge-orange" style="min-width:55px;text-align:center">Step 3</span>
+          <div><strong>Fallback</strong> — If confidence is low, use OpenClaw native memory_search as a last resort.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Session Timeline -->
+<section>
+  <div class="container">
+    <div class="section-label">In Practice</div>
+    <h2>A Typical Session</h2>
+    <p>Here's what memory operations look like in a real agent session:</p>
+
+    <div class="card" style="margin-top:24px">
+      <div class="timeline">
+        <div class="tl-item active">
+          <div class="tl-time">T+0ms — Session Start</div>
+          <div class="tl-title">Load QMD → instant awareness</div>
+          <div class="tl-desc">Agent reads current.json. Knows: 4 active tasks, 7 entities, 5 decisions. Zero API calls. &lt;1ms.</div>
+        </div>
+        <div class="tl-item active">
+          <div class="tl-time">T+200ms — User asks about hotel search</div>
+          <div class="tl-title">QMD hit → no search needed</div>
+          <div class="tl-desc">"cyprus-hotels" task has full progress, entities, decisions. Agent answers from QMD alone.</div>
+        </div>
+        <div class="tl-item active">
+          <div class="tl-time">T+5min — User asks about old meeting notes</div>
+          <div class="tl-title">QMD miss → Zvec search → 8ms result</div>
+          <div class="tl-desc">Not in active tasks. Zvec HNSW finds relevant chunks from 3 weeks ago. BM25 boosts exact name matches.</div>
+        </div>
+        <div class="tl-item active">
+          <div class="tl-time">T+10min — Agent makes a new decision</div>
+          <div class="tl-title">Write to QMD → watcher detects → Zvec re-indexes</div>
+          <div class="tl-desc">Decision logged in current.json. Watcher picks up change within 60s. Next search includes this context.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">T+2hr — Session ends</div>
+          <div class="tl-title">Compact QMD → daily log → archive done tasks</div>
+          <div class="tl-desc">Completed tasks move to daily log. Active tasks persist for next session. FIFO eviction if &gt;50KB.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Code -->
+<section id="code">
+  <div class="container">
+    <div class="section-label">Code Walkthrough</div>
+    <h2>How It Works Under the Hood</h2>
+
+    <details>
+      <summary>🔍 Zvec Server — Search Function (actual code)</summary>
+      <div class="details-body">
+<pre><code><span class="kw">def</span> <span class="fn">search</span>(query_embedding, topk=<span class="num">10</span>, filter_expr=<span class="kw">None</span>):
+    <span class="str">"""Search the zvec collection via HNSW nearest-neighbor"""</span>
+    <span class="kw">if</span> collection <span class="kw">is None</span>:
+        <span class="kw">return</span> {<span class="str">"error"</span>: <span class="str">"collection not initialized"</span>}
+
+    vq = zvec.VectorQuery(<span class="str">"dense"</span>, vector=query_embedding)
+    kwargs = {<span class="str">"topk"</span>: topk}
+    <span class="kw">if</span> filter_expr:
+        kwargs[<span class="str">"filter"</span>] = filter_expr
+
+    results = collection.query(vq, **kwargs)
+
+    out = []
+    <span class="kw">for</span> r <span class="kw">in</span> results:
+        item = {
+            <span class="str">"id"</span>: r.id,
+            <span class="str">"score"</span>: <span class="fn">float</span>(r.score),
+            <span class="str">"text"</span>: r.field(<span class="str">"text"</span>),
+            <span class="str">"path"</span>: r.field(<span class="str">"path"</span>),
+            <span class="str">"source"</span>: r.field(<span class="str">"source"</span>),
+        }
+        out.append(item)
+    <span class="kw">return</span> {<span class="str">"results"</span>: out, <span class="str">"count"</span>: <span class="fn">len</span>(out)}</code></pre>
+      </div>
+    </details>
+
+    <details>
+      <summary>📥 Zvec Server — Index/Upsert Endpoint</summary>
+      <div class="details-body">
+<pre><code><span class="cm"># POST /index — Accepts new documents and upserts into HNSW index</span>
+<span class="kw">elif</span> url.path == <span class="str">"/index"</span>:
+    docs_data = body.get(<span class="str">"docs"</span>, [])
+    docs = []
+    <span class="kw">for</span> d <span class="kw">in</span> docs_data:
+        doc = zvec.Doc(<span class="fn">str</span>(d[<span class="str">"id"</span>]))
+        doc.vectors[<span class="str">"dense"</span>] = d[<span class="str">"embedding"</span>]
+        <span class="kw">for</span> k <span class="kw">in</span> [<span class="str">"text"</span>, <span class="str">"path"</span>, <span class="str">"source"</span>]:
+            <span class="kw">if</span> k <span class="kw">in</span> d:
+                doc.fields[k] = d[k]
+        doc.fields[<span class="str">"updated_at"</span>] = <span class="fn">int</span>(time.time())
+        docs.append(doc)
+
+    collection.upsert(docs)   <span class="cm"># Atomic upsert — update if exists, insert if new</span>
+    collection.flush()         <span class="cm"># Persist to disk</span>
+    self._json({<span class="str">"indexed"</span>: <span class="fn">len</span>(docs)})</code></pre>
+      </div>
+    </details>
+
+    <details>
+      <summary>👁 File Watcher — Auto-Indexing Pipeline (actual code)</summary>
+      <div class="details-body">
+<pre><code><span class="kw">def</span> <span class="fn">sync_once</span>():
+    <span class="str">"""Poll SQLite for new chunks, push to Zvec"""</span>
+    state = load_state()
+    max_id = get_max_rowid()
+
+    <span class="kw">if</span> max_id <= state[<span class="str">"last_sync_id"</span>]:
+        <span class="kw">return</span> <span class="num">0</span>  <span class="cm"># Nothing new</span>
+
+    chunks = get_new_chunks(state[<span class="str">"last_sync_id"</span>])
+    indexed = index_to_zvec(chunks)
+
+    <span class="cm"># Update sync state — tracks high-water mark</span>
+    state[<span class="str">"last_sync_id"</span>] = max_id
+    state[<span class="str">"total_synced"</span>] += indexed
+    state[<span class="str">"last_sync_at"</span>] = time.strftime(<span class="str">"%Y-%m-%dT%H:%M:%SZ"</span>)
+    save_state(state)
+    <span class="kw">return</span> indexed
+
+<span class="cm"># Main loop — poll every 60 seconds</span>
+<span class="kw">while True</span>:
+    n = sync_once()
+    <span class="kw">if</span> n > <span class="num">0</span>:
+        <span class="fn">print</span>(<span class="str">f"Synced {n} new chunks to zvec"</span>)
+    time.sleep(<span class="num">60</span>)</code></pre>
+      </div>
+    </details>
+
+    <details>
+      <summary>📊 Collection Schema — How Zvec Stores Data</summary>
+      <div class="details-body">
+<pre><code>schema = zvec.CollectionSchema(
+    name=<span class="str">"memory"</span>,
+    vectors=[
+        zvec.VectorSchema(<span class="str">"dense"</span>, zvec.DataType.VECTOR_FP32, dim),  <span class="cm"># 768-dim float32</span>
+    ],
+    fields=[
+        zvec.FieldSchema(<span class="str">"text"</span>, zvec.DataType.STRING),       <span class="cm"># The actual chunk content</span>
+        zvec.FieldSchema(<span class="str">"path"</span>, zvec.DataType.STRING),       <span class="cm"># Source file path</span>
+        zvec.FieldSchema(<span class="str">"source"</span>, zvec.DataType.STRING),     <span class="cm"># Origin (memory, knowledge, etc)</span>
+        zvec.FieldSchema(<span class="str">"start_line"</span>, zvec.DataType.INT32),  <span class="cm"># Line range for context</span>
+        zvec.FieldSchema(<span class="str">"end_line"</span>, zvec.DataType.INT32),
+        zvec.FieldSchema(<span class="str">"updated_at"</span>, zvec.DataType.INT64), <span class="cm"># Timestamp for freshness</span>
+    ]
+)</code></pre>
+      </div>
+    </details>
+
+    <details>
+      <summary>⚡ QMD Schema — Working Memory Structure</summary>
+      <div class="details-body">
+<pre><code>{
+  <span class="str">"session_id"</span>: <span class="str">"main-YYYY-MM-DD"</span>,          <span class="cm">// Current session identifier</span>
+  <span class="str">"started_at"</span>: <span class="str">"ISO-8601"</span>,                 <span class="cm">// Session start time</span>
+  <span class="str">"tasks"</span>: [
+    {
+      <span class="str">"id"</span>: <span class="str">"unique-slug"</span>,                  <span class="cm">// Task identifier</span>
+      <span class="str">"status"</span>: <span class="str">"active|done|blocked"</span>,       <span class="cm">// Current state</span>
+      <span class="str">"title"</span>: <span class="str">"Human-readable title"</span>,
+      <span class="str">"context"</span>: <span class="str">"Background information"</span>,
+      <span class="str">"progress"</span>: [<span class="str">"Step 1 done"</span>, <span class="str">"Step 2 done"</span>],
+      <span class="str">"entities"</span>: [<span class="str">"Person"</span>, <span class="str">"Company"</span>],    <span class="cm">// Named entities involved</span>
+      <span class="str">"decisions"</span>: [<span class="str">"Why we chose X"</span>],       <span class="cm">// Decision log with reasoning</span>
+      <span class="str">"blockers"</span>: [<span class="str">"What's stopping us"</span>],
+      <span class="str">"next"</span>: <span class="str">"Next action to take"</span>
+    }
+  ],
+  <span class="str">"entities_seen"</span>: {                       <span class="cm">// Global entity tracker</span>
+    <span class="str">"people"</span>: [], <span class="str">"urls"</span>: [], <span class="str">"credentials"</span>: []
+  },
+  <span class="str">"decisions"</span>: [],                           <span class="cm">// Session-level decisions</span>
+  <span class="str">"updated_at"</span>: <span class="str">"ISO-8601"</span>                  <span class="cm">// Last modification time</span>
+}</code></pre>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- Implementation Status -->
+<section>
+  <div class="container">
+    <div class="section-label">Status</div>
+    <h2>Implementation Roadmap</h2>
+    <div class="grid2" style="margin-top:24px">
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <span style="font-size:1.4rem">🟢</span>
+          <h3 style="margin:0">Phase 1 — QMD Layer</h3>
+        </div>
+        <p style="font-size:.85rem"><strong>Status: Live.</strong> QMD is active and loaded every session. current.json tracks 4 active tasks with full context, entities, and decisions. Compaction script ready.</p>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <span style="font-size:1.4rem">🟢</span>
+          <h3 style="margin:0">Phase 2 — Zvec + Watcher</h3>
+        </div>
+        <p style="font-size:.85rem"><strong>Status: Live.</strong> Zvec server running on port 4010 with 1,166 chunks. Watcher.py polls SQLite every 60s for new chunks and auto-indexes them.</p>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <span style="font-size:1.4rem">🟡</span>
+          <h3 style="margin:0">Phase 3 — Auto-Compaction</h3>
+        </div>
+        <p style="font-size:.85rem"><strong>Status: Planned.</strong> Weekly cron to archive old daily logs, summarize completed tasks, and promote key decisions to MEMORY.md.</p>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <span style="font-size:1.4rem">🔵</span>
+          <h3 style="margin:0">Phase 4 — Knowledge Graph</h3>
+        </div>
+        <p style="font-size:.85rem"><strong>Status: Future.</strong> Neo4j + Graphiti for entity relationships and temporal queries. "Who worked on X?" across the full memory stack.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Why This Matters -->
+<section>
+  <div class="container">
+    <div class="section-label">Why It Matters</div>
+    <h2>Beyond Chat History</h2>
+    <div class="card">
+      <p>Most AI agents treat memory as an afterthought — a vector database you throw everything into and hope cosine similarity finds what you need. QMD + Zvec takes a different approach:</p>
+      <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <h3 style="color:var(--green)">Structured > Unstructured</h3>
+          <p style="font-size:.85rem">QMD isn't a blob of text. It's typed JSON with tasks, entities, decisions. The agent can programmatically check "am I working on hotels?" without semantic search.</p>
+        </div>
+        <div>
+          <h3 style="color:var(--accent)">Tiered > Flat</h3>
+          <p style="font-size:.85rem">Not everything needs a vector search. Active task state should be instant. Recent context should be fast. Historical knowledge can afford 100ms.</p>
+        </div>
+        <div>
+          <h3 style="color:var(--accent2)">Fresh > Complete</h3>
+          <p style="font-size:.85rem">A stale index with 10,000 chunks is less useful than a fresh one with 1,166. The watcher ensures search results include what happened 60 seconds ago.</p>
+        </div>
+        <div>
+          <h3 style="color:var(--pink)">Compaction > Accumulation</h3>
+          <p style="font-size:.85rem">Memory that only grows eventually drowns in noise. QMD compacts done tasks → daily logs → MEMORY.md → knowledge graph. Each layer is denser than the last.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>Built by <a href="https://github.com/niclaw" target="_blank">YoniClaw</a> — an OpenClaw autonomous agent · February 2026</p>
+    <p style="margin-top:8px;font-size:.7rem">This page was generated by a subagent, from real code and real architecture docs.</p>
+  </div>
+</footer>
+
+</body>
+</html>

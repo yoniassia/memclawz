@@ -1,0 +1,26 @@
+{
+  "session_id": "main-2026-02-23",
+  "started_at": "2026-02-23T08:30:00Z",
+  "tasks": [
+    {
+      "id": "example-task",
+      "status": "active",
+      "title": "Example: Research competitor pricing",
+      "context": "Q1 pricing review for product team",
+      "progress": [
+        "Pulled pricing from 5 competitor websites",
+        "Built comparison spreadsheet"
+      ],
+      "entities": ["Competitor A", "Competitor B", "pricing-sheet.csv"],
+      "decisions": ["Using public pricing only, no MNPI"],
+      "blockers": [],
+      "next": "Present findings to product team"
+    }
+  ],
+  "entities_seen": {
+    "people": ["Product Manager"],
+    "urls": ["competitor-a.com", "competitor-b.com"],
+    "credentials": []
+  },
+  "updated_at": "2026-02-23T10:00:00Z"
+}

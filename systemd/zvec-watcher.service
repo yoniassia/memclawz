@@ -1,0 +1,15 @@
+[Unit]
+Description=Zvec Auto-Indexing Watcher
+After=zvec-server.service
+Requires=zvec-server.service
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=%h/.openclaw/workspace/QMDZvec
+ExecStart=/usr/bin/python3.10 zvec/watcher.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

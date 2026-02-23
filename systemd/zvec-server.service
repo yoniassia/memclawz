@@ -1,0 +1,16 @@
+[Unit]
+Description=Zvec Memory Search Server
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=%h/.openclaw/workspace/QMDZvec
+ExecStart=/usr/bin/python3.10 zvec/server.py
+Restart=on-failure
+RestartSec=5
+Environment=ZVEC_PORT=4010
+Environment=ZVEC_DATA=%h/.openclaw/zvec-memory
+
+[Install]
+WantedBy=multi-user.target

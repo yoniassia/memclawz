@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QMD — Quick Memory Dump",
+  "description": "Structured working memory for OpenClaw agents. Layer 0 of the QMDZvec memory architecture.",
+  "type": "object",
+  "required": ["tasks"],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "Identifier for the current session (e.g., main-2026-02-23)"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this QMD state was initialized"
+    },
+    "tasks": {
+      "type": "array",
+      "description": "Active and recently completed tasks",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "title"],
+        "properties": {
+          "id": { "type": "string", "description": "Unique task identifier (kebab-case)" },
+          "status": { "type": "string", "enum": ["active", "blocked", "done"], "description": "Current task state" },
+          "title": { "type": "string", "description": "Human-readable task title" },
+          "context": { "type": "string", "description": "Background context for the task" },
+          "progress": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Chronological progress notes"
+          },
+          "entities": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "People, places, URLs, tools mentioned"
+          },
+          "decisions": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Why-we-chose-X decision log"
+          },
+          "blockers": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "What's preventing progress"
+          },
+          "next": { "type": "string", "description": "Next action to take" },
+          "outcome": { "type": "string", "description": "Final outcome (for done tasks)" }
+        }
+      }
+    },
+    "entities_seen": {
+      "type": "object",
+      "description": "Cross-task entity tracking",
+      "properties": {
+        "people": { "type": "array", "items": { "type": "string" } },
+        "urls": { "type": "array", "items": { "type": "string" } },
+        "credentials": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last update timestamp"
+    }
+  }
+}
