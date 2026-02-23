@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Three-Speed Memory — QMD + Zvec for OpenClaw</title>
+<script>
+(function(){
+  if(localStorage.getItem('clawz_auth')==='ok')return;
+  var p=prompt('Password:');
+  if(p==='Clawz123'){localStorage.setItem('clawz_auth','ok')}
+  else{document.documentElement.innerHTML='<h1 style="color:#fff;text-align:center;margin-top:40vh">Access denied</h1>';throw'denied'}
+})();
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
