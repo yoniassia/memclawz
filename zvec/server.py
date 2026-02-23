@@ -202,13 +202,11 @@ class Handler(BaseHTTPRequestHandler):
             for d in docs_data:
                 doc = zvec.Doc(str(d["id"]))
                 doc.vectors["dense"] = d["embedding"]
-                for k in ["text", "path", "source"]:
-                    if k in d:
-                        doc.fields[k] = d[k]
-                if "start_line" in d:
-                    doc.fields["start_line"] = d["start_line"]
-                if "end_line" in d:
-                    doc.fields["end_line"] = d["end_line"]
+                doc.fields["text"] = d.get("text", "")
+                doc.fields["path"] = d.get("path", "")
+                doc.fields["source"] = d.get("source", "")
+                doc.fields["start_line"] = d.get("start_line", 0)
+                doc.fields["end_line"] = d.get("end_line", 0)
                 doc.fields["updated_at"] = int(time.time())
                 docs.append(doc)
             collection.upsert(docs)
