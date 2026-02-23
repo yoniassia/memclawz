@@ -211,6 +211,8 @@ class Handler(BaseHTTPRequestHandler):
                 docs.append(doc)
             collection.upsert(docs)
             collection.flush()
+            collection.optimize()
+            collection.create_index("dense", zvec.HnswIndexParam())
             self._json({"indexed": len(docs)})
         
         else:

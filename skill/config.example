@@ -1,0 +1,26 @@
+# QMDZvec Configuration
+# Copy to .env or export these variables
+
+# Zvec server port
+ZVEC_PORT=4010
+
+# HNSW index storage directory
+ZVEC_DATA=~/.openclaw/zvec-memory
+
+# OpenClaw memory SQLite path (for migration)
+SQLITE_PATH=~/.openclaw/memory/main.sqlite
+
+# File watcher directories (comma-separated)
+WATCH_DIRS=memory/,knowledge/
+
+# File watcher additional files
+WATCH_FILES=MEMORY.md
+
+# File watcher poll interval (seconds)
+WATCH_INTERVAL=30
+
+# Fleet server port (multi-agent mode)
+FLEET_PORT=4011
+
+# Fleet server API key (set for authentication)
+# FLEET_API_KEY=your-secret-key-here

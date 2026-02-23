@@ -1,3 +1,8 @@
+![Tests](https://img.shields.io/badge/tests-34%2F34_passing-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![OpenClaw](https://img.shields.io/badge/OpenClaw-compatible-orange)
+![Python](https://img.shields.io/badge/python-3.10+-blue)
+
 # QMDZvec — Three-Speed Memory for OpenClaw Agents
 
 > **Give your OpenClaw agent a brain that actually remembers.**
@@ -165,7 +170,7 @@ Run manually, via cron, or as part of a heartbeat check.
 ```bash
 # 1. Clone into your OpenClaw workspace
 cd ~/.openclaw/workspace
-git clone https://github.com/nicenemo/QMDZvec.git
+git clone https://github.com/yoniassia/QMDZvec.git
 
 # 2. Install Python dependencies
 pip install zvec numpy
@@ -237,21 +242,34 @@ Measured on AMD EPYC 9354P, 32GB RAM, 1,166 indexed chunks:
 QMDZvec/
 ├── README.md
 ├── LICENSE
+├── CONTRIBUTING.md
+├── clawhub.json              # ClawHub package manifest
 ├── requirements.txt
 ├── qmd/
-│   ├── schema.json          # QMD JSON schema
-│   └── current.json.example # Example QMD state
+│   ├── schema.json           # QMD JSON schema
+│   └── current.json.example  # Example QMD state
 ├── zvec/
-│   ├── server.py            # Zvec HTTP search server
-│   └── watcher.py           # Auto-indexing watcher
+│   ├── server.py             # Zvec HTTP search server
+│   ├── fleet_server.py       # Multi-tenant fleet memory server
+│   ├── file_watcher.py       # Direct .md file watcher + indexer
+│   ├── chunker.py            # Markdown chunking engine
+│   ├── watcher.py            # SQLite auto-indexing watcher
+│   ├── embedder.py           # Embedding utilities
+│   └── search_client.py      # Python search client
+├── skill/
+│   ├── SKILL.md              # OpenClaw skill instructions
+│   ├── install.sh            # One-command setup
+│   └── config.example        # Environment config
 ├── scripts/
-│   └── qmd-compact.py       # Compaction script
+│   └── qmd-compact.py        # Compaction script
 ├── systemd/
 │   ├── zvec-server.service
 │   └── zvec-watcher.service
+├── tests/                    # 34 tests (all passing)
 └── docs/
-    ├── architecture.md       # Detailed architecture doc
-    └── explainer.html        # Interactive visual explainer
+    ├── architecture.md
+    ├── fleet-memory.md       # Fleet Memory documentation
+    └── explainer.html
 ```
 
 ## How It Improves OpenClaw Memory
@@ -296,26 +314,69 @@ Environment variables for the Zvec server:
 | `ZVEC_DATA` | `~/.openclaw/zvec-memory` | HNSW index storage |
 | `SQLITE_PATH` | `~/.openclaw/memory/main.sqlite` | OpenClaw memory DB |
 
+## As an OpenClaw Skill
+
+Install QMDZvec as a skill package:
+
+```bash
+# From ClawHub (coming soon)
+openclaw skill install qmd-zvec
+
+# Or manually
+cd ~/.openclaw/workspace
+git clone https://github.com/yoniassia/QMDZvec.git
+cd QMDZvec && bash skill/install.sh
+```
+
+See [`skill/SKILL.md`](skill/SKILL.md) for full agent integration guide.
+
+## Fleet Memory — Cross-Agent Sharing
+
+Share memory across multiple OpenClaw agents with namespaced collections:
+
+```
+┌──────────┐  ┌──────────┐  ┌──────────┐
+│ YoniClaw │  │ Clawdet  │  │ WhiteRab │
+└────┬─────┘  └────┬─────┘  └────┬─────┘
+     └─────────────┼─────────────┘
+          ┌────────▼────────┐
+          │  Fleet Memory   │
+          │  (Shared Zvec)  │
+          └─────────────────┘
+```
+
+```bash
+# Start the fleet server
+python3.10 zvec/fleet_server.py --port 4011 --api-key my-secret
+
+# Index from any agent
+curl -X POST http://fleet:4011/index \
+  -H 'X-API-Key: my-secret' \
+  -d '{"namespace": "yoniclaw", "docs": [...]}'
+
+# Search across all agents
+curl -X POST http://fleet:4011/search \
+  -d '{"namespace": "all", "embedding": [...], "topk": 10}'
+```
+
+📖 **[Full Fleet Memory documentation →](docs/fleet-memory.md)**
+
 ## Roadmap
 
 - [x] QMD working memory layer
 - [x] Zvec HNSW + BM25 hybrid search server
 - [x] Auto-indexing watcher (SQLite → Zvec)
 - [x] Compaction script
-- [ ] OpenClaw skill package (`skills/qmd-zvec/SKILL.md`)
-- [ ] Direct file watcher (bypass SQLite, index raw .md files)
+- [x] OpenClaw skill package (`skill/SKILL.md`)
+- [x] Direct file watcher (`zvec/file_watcher.py`)
+- [x] Cross-agent memory sharing (Fleet Memory)
+- [x] ClawHub package manifest (`clawhub.json`)
 - [ ] Neo4j knowledge graph layer (entity extraction → graph)
-- [ ] Cross-agent memory sharing (fleet-wide QMD sync)
-- [ ] ClawHub package for one-command install
+- [ ] WebSocket real-time memory subscriptions
 
 ## Contributing
 
-This is an open-source memory upgrade for OpenClaw agents. PRs welcome.
-
-1. Fork the repo
-2. Create a feature branch
-3. Test with a running OpenClaw instance
-4. Submit a PR
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 ## License
 
@@ -323,7 +384,7 @@ MIT — use it, fork it, improve it.
 
 ## Credits
 
-Built by [YoniClaw](https://github.com/nicenemo) 🦞 — Yoni Assia's AI agent running on [OpenClaw](https://github.com/openclaw/openclaw).
+Built by [YoniClaw](https://github.com/yoniassia) 🦞 — Yoni Assia's AI agent running on [OpenClaw](https://github.com/openclaw/openclaw).
 
 Inspired by the need for AI agents that don't forget what they were doing 5 minutes ago.
 
