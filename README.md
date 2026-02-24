@@ -419,32 +419,55 @@ curl -X POST http://fleet:4011/search \
 
 📖 **[Full Fleet Memory documentation →](docs/fleet-memory.md)**
 
-## Post-Install: Context Optimizer
+## 🚀 3-Step Optimization — From Install to Fleet
 
-After memclawz is running, optimize your agent's context and generate a sub-agent fleet architecture:
+After install, memclawz gives you a clear upgrade path in 3 steps:
 
+### Step 1: Install & Index (3 min)
+```bash
+cd ~/.openclaw/workspace
+git clone https://github.com/yoniassia/memclawz.git
+cd memclawz && bash scripts/first-run.sh
+```
+Your agent now has 3-speed memory. All existing memory auto-imported.
+
+### Step 2: Optimize Context (5 min)
 ```bash
 python3 scripts/optimize-context.py
 ```
+Analyzes your workspace and generates `memory/context-optimization.md` with:
+- **Context audit** — which files are bloating your prompt and by how much
+- **Token budget** — current vs optimized (typical savings: **50-60%**)
+- **Slim AGENTS.md** — ready-to-use orchestrator config (~1,500 tokens vs your bloated one)
 
-This analyzes your workspace and generates `memory/context-optimization.md` with:
-
-1. **Context audit** — which files are bloating your prompt and by how much
-2. **Sub-agent architecture** — recommended specialist agents (DevClaw, TradeClaw, MarketClaw...) based on YOUR actual skills
-3. **Skill distribution** — which skills go to which sub-agent
-4. **Slim AGENTS.md** — ready-to-use orchestrator config (~1,500 tokens vs your current bloated one)
-5. **Sub-agent templates** — AGENTS.md for each specialist, pre-configured with memclawz shared memory
-6. **Migration plan** — Phase 1 (slim context, 30min) → Phase 2 (create sub-agents, 1hr) → Phase 3 (shared memory, 30min)
-
+```
 Example output:
+  Current prompt: ~14,863 tokens
+  Optimized:      ~6,300 tokens
+  Savings:         58%
 ```
-Current prompt: ~14,863 tokens
-Optimized:      ~6,300 tokens
-Savings:         58%
-Sub-agents:      8 (TradeClaw, MarketClaw, DevClaw, InfraClaw...)
-```
+
+### Step 3: Fleet Architecture (30 min)
+The optimizer also generates:
+- **Sub-agent architecture** — specialist agents (DevClaw, TradeClaw, MarketClaw...) based on YOUR actual skills
+- **Skill distribution** — which skills go to which sub-agent
+- **Sub-agent templates** — AGENTS.md for each specialist, pre-configured with shared memory
+- **Migration plan** — Phase 1 (slim context) → Phase 2 (create sub-agents) → Phase 3 (shared memory)
 
 The key insight: your main agent becomes a **lightweight orchestrator** that routes to specialists. All agents share memory via memclawz fleet server. No agent loads more than ~2K tokens of skills.
+
+```
+🦞 Main Orchestrator (~1,500 tokens)
+│   Identity + routing + memclawz protocol
+│
+├── 💰 TradeClaw (finance skills)
+├── 🎯 MarketClaw (marketing skills)
+├── 🔨 DevClaw (development skills)
+├── 🏗️ InfraClaw (infrastructure skills)
+├── 📬 CommsClaw (communication skills)
+│
+└── 🧠 Shared memclawz Fleet Memory (all agents)
+```
 
 ## Dispatch Pattern — Memory-Aware Sub-Agent Routing
 
