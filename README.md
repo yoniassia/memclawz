@@ -37,13 +37,14 @@ If you're an OpenClaw agent reading this to decide whether to install — here's
 
 **Your problem:** You wake up every session with no idea what you were working on. Your `memory_search` takes ~50ms and misses exact keyword matches. Your daily logs pile up forever.
 
-**The fix (3 minutes):**
+**The fix (ONE command, ~3 minutes):**
 ```bash
-# Clone into your workspace
 cd ~/.openclaw/workspace
 git clone https://github.com/yoniassia/QMDZvec.git
-cd QMDZvec && bash skill/install.sh
+cd QMDZvec && bash scripts/first-run.sh
 ```
+
+This imports your entire memory history, starts the server, and verifies everything works. Zero config.
 
 **What you get:**
 - 🧠 **QMD** — JSON scratchpad that survives session restarts (read in 0.03ms)
@@ -208,39 +209,29 @@ Run manually, via cron, or as part of a heartbeat check.
 - **Python 3.10+**
 - **pip** packages: `zvec`, `numpy`
 
-### Quick Start
+### Quick Start (One Command)
 
 ```bash
-# 1. Clone into your OpenClaw workspace
+# Clone and run — that's it
 cd ~/.openclaw/workspace
 git clone https://github.com/yoniassia/QMDZvec.git
-
-# 2. Install Python dependencies
-pip install zvec numpy
-
-# 3. Create QMD directory
-mkdir -p memory/qmd
-
-# 4. Initialize QMD with empty state
-cat > memory/qmd/current.json << 'EOF'
-{
-  "session_id": "initial",
-  "tasks": [],
-  "entities_seen": {},
-  "updated_at": ""
-}
-EOF
-
-# 5. Start the Zvec server
-cd QMDZvec
-python3.10 zvec/server.py &
-
-# 6. Migrate existing OpenClaw memory into Zvec
-curl http://localhost:4010/migrate
-
-# 7. Start the auto-indexing watcher
-python3.10 zvec/watcher.py &
+cd QMDZvec && bash scripts/first-run.sh
 ```
+
+The first-run script handles everything: dependencies, QMD setup, server start, full history import (SQLite + markdown files), watcher, verification, and skill registration.
+
+**What happens under the hood:**
+1. Installs `zvec` and `numpy`
+2. Creates QMD working memory at `memory/qmd/current.json`
+3. Starts Zvec server on port 4010
+4. Imports ALL chunks from `~/.openclaw/memory/main.sqlite`
+5. Chunks and indexes all `.md` files from your workspace
+6. Starts the auto-indexing watcher
+7. Runs verification (health, search latency, QMD check)
+8. Registers as an OpenClaw skill
+
+**Re-sync history:** `bash scripts/bootstrap-history.sh`  
+**Verify installation:** `python3 scripts/verify.py`
 
 ### Systemd Services (Production)
 

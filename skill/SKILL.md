@@ -2,11 +2,25 @@
 
 > Give your OpenClaw agent structured working memory, fast vector search, and automatic compaction.
 
-## Quick Setup
+## Quick Setup (One Command)
 
 ```bash
-cd ~/.openclaw/workspace/QMDZvec && bash skill/install.sh
+cd ~/.openclaw/workspace
+git clone https://github.com/yoniassia/QMDZvec.git
+cd QMDZvec && bash scripts/first-run.sh
 ```
+
+This single command will:
+1. Install dependencies (zvec, numpy)
+2. Create QMD working memory
+3. Start the Zvec server
+4. Import ALL existing OpenClaw memory (SQLite + markdown files)
+5. Start the auto-indexing watcher
+6. Verify everything works
+7. Register as an OpenClaw skill
+
+**Re-sync history anytime:** `bash scripts/bootstrap-history.sh`
+**Verify installation:** `python3 scripts/verify.py`
 
 ## What This Gives You
 
