@@ -395,6 +395,33 @@ curl -X POST http://fleet:4011/search \
 
 📖 **[Full Fleet Memory documentation →](docs/fleet-memory.md)**
 
+## Post-Install: Context Optimizer
+
+After QMDZvec is running, optimize your agent's context and generate a sub-agent fleet architecture:
+
+```bash
+python3 scripts/optimize-context.py
+```
+
+This analyzes your workspace and generates `memory/context-optimization.md` with:
+
+1. **Context audit** — which files are bloating your prompt and by how much
+2. **Sub-agent architecture** — recommended specialist agents (DevClaw, TradeClaw, MarketClaw...) based on YOUR actual skills
+3. **Skill distribution** — which skills go to which sub-agent
+4. **Slim AGENTS.md** — ready-to-use orchestrator config (~1,500 tokens vs your current bloated one)
+5. **Sub-agent templates** — AGENTS.md for each specialist, pre-configured with QMDZvec shared memory
+6. **Migration plan** — Phase 1 (slim context, 30min) → Phase 2 (create sub-agents, 1hr) → Phase 3 (shared memory, 30min)
+
+Example output:
+```
+Current prompt: ~14,863 tokens
+Optimized:      ~6,300 tokens
+Savings:         58%
+Sub-agents:      8 (TradeClaw, MarketClaw, DevClaw, InfraClaw...)
+```
+
+The key insight: your main agent becomes a **lightweight orchestrator** that routes to specialists. All agents share memory via QMDZvec fleet server. No agent loads more than ~2K tokens of skills.
+
 ## Roadmap
 
 - [x] QMD working memory layer
