@@ -1,33 +1,86 @@
 #!/usr/bin/env python3.10
 """
 zvec-memory: Fast vector memory service for OpenClaw
-Replaces sqlite-vec with Alibaba Zvec (HNSW) + BM25 hybrid search
+FastAPI + uvicorn with Pydantic validation, CORS, multi-worker support
 """
 import json
 import os
 import sys
 import time
 import sqlite3
+from typing import List, Optional, Any, Dict
+
 import numpy as np
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import uvicorn
 
 import zvec
 
 PORT = int(os.environ.get("ZVEC_PORT", "4010"))
 DATA_DIR = os.environ.get("ZVEC_DATA", os.path.expanduser("~/.openclaw/zvec-memory"))
 SQLITE_PATH = os.environ.get("SQLITE_PATH", os.path.expanduser("~/.openclaw/memory/main.sqlite"))
-DIM = 256  # embeddinggemma-300m output dim — will detect from data
+WORKERS = int(os.environ.get("ZVEC_WORKERS", "2"))
+DIM = 256
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
 collection = None
 
+app = FastAPI(title="zvec-memory", description="Fast vector memory service for OpenClaw")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# --- Pydantic models ---
+
+class DocInput(BaseModel):
+    id: str
+    embedding: List[float]
+    text: str = ""
+    path: str = ""
+    source: str = ""
+    start_line: int = 0
+    end_line: int = 0
+
+class IndexRequest(BaseModel):
+    docs: List[DocInput]
+
+class IndexResponse(BaseModel):
+    indexed: int
+
+class SearchRequest(BaseModel):
+    embedding: List[float]
+    topk: int = 10
+    filter: Optional[str] = None
+
+class SearchResult(BaseModel):
+    id: str
+    score: float
+    text: str = ""
+    path: str = ""
+    source: str = ""
+    start_line: Optional[int] = None
+    end_line: Optional[int] = None
+
+class SearchResponse(BaseModel):
+    results: List[SearchResult]
+    count: int
+
+
+# --- Core logic (unchanged) ---
+
 def get_or_create_collection(dim=256):
     global collection, DIM
     DIM = dim
     col_path = os.path.join(DATA_DIR, "memory")
-    
+
     schema = zvec.CollectionSchema(
         name="memory",
         vectors=[
@@ -42,14 +95,14 @@ def get_or_create_collection(dim=256):
             zvec.FieldSchema("updated_at", zvec.DataType.INT64),
         ]
     )
-    
+
     if os.path.exists(col_path):
         collection = zvec.open(col_path)
         print(f"Opened existing collection: {collection.stats()}")
     else:
         collection = zvec.create_and_open(col_path, schema)
         print(f"Created new collection at {col_path}")
-    
+
     return collection
 
 
@@ -58,27 +111,26 @@ def migrate_from_sqlite():
     global DIM
     if not os.path.exists(SQLITE_PATH):
         return {"error": f"SQLite not found at {SQLITE_PATH}"}
-    
+
     conn = sqlite3.connect(SQLITE_PATH)
     conn.row_factory = sqlite3.Row
-    
+
     rows = conn.execute("""
-        SELECT id, path, source, start_line, end_line, text, embedding, updated_at 
-        FROM chunks 
+        SELECT id, path, source, start_line, end_line, text, embedding, updated_at
+        FROM chunks
         WHERE embedding IS NOT NULL
         ORDER BY id
     """).fetchall()
-    
+
     if not rows:
         return {"migrated": 0, "error": "no chunks with embeddings"}
-    
-    # Detect embedding dimension from first row
+
     first_emb = json.loads(rows[0]["embedding"])
     dim = len(first_emb)
     print(f"Detected embedding dimension: {dim}")
-    
+
     col = get_or_create_collection(dim)
-    
+
     docs = []
     skipped = 0
     for row in rows:
@@ -94,7 +146,7 @@ def migrate_from_sqlite():
         if len(emb) != dim:
             skipped += 1
             continue
-        
+
         d = zvec.Doc(str(row["id"]))
         d.vectors["dense"] = emb if isinstance(emb, list) else emb.tolist()
         d.fields["text"] = row["text"] or ""
@@ -104,32 +156,31 @@ def migrate_from_sqlite():
         d.fields["end_line"] = row["end_line"] or 0
         d.fields["updated_at"] = int(row["updated_at"] or 0)
         docs.append(d)
-    
+
     conn.close()
-    
+
     if docs:
-        # Insert in batches of 100
         for i in range(0, len(docs), 100):
             batch = docs[i:i+100]
             col.insert(batch)
         col.create_index("dense", zvec.HnswIndexParam())
         col.flush()
-    
+
     return {"migrated": len(docs), "skipped": skipped, "dimension": dim}
 
 
-def search(query_embedding, topk=10, filter_expr=None):
+def do_search(query_embedding, topk=10, filter_expr=None):
     """Search the zvec collection"""
     if collection is None:
         return {"error": "collection not initialized"}
-    
+
     vq = zvec.VectorQuery("dense", vector=query_embedding)
     kwargs = {"topk": topk}
     if filter_expr:
         kwargs["filter"] = filter_expr
-    
+
     results = collection.query(vq, **kwargs)
-    
+
     out = []
     for r in results:
         item = {
@@ -144,103 +195,87 @@ def search(query_embedding, topk=10, filter_expr=None):
         if r.has_field("end_line"):
             item["end_line"] = r.field("end_line")
         out.append(item)
-    
+
     return {"results": out, "count": len(out)}
 
 
-class Handler(BaseHTTPRequestHandler):
-    def log_message(self, format, *args):
-        pass  # Silence default logging
-    
-    def _json(self, data, status=200):
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(json.dumps(data).encode())
-    
-    def do_GET(self):
-        url = urlparse(self.path)
-        
-        if url.path == "/health":
-            self._json({"status": "ok", "engine": "zvec", "version": zvec.__version__})
-        
-        elif url.path == "/stats":
-            if collection:
-                try:
-                    stats = collection.stats()
-                    total_docs = stats.get("total_docs", 0) if isinstance(stats, dict) else 0
-                except:
-                    total_docs = 0
-                self._json({"total_docs": total_docs, "dim": DIM, "path": DATA_DIR, "status": "loaded"})
-            else:
-                self._json({"total_docs": 0, "dim": DIM, "path": DATA_DIR, "status": "uninitialized"})
-        
-        elif url.path == "/migrate":
-            result = migrate_from_sqlite()
-            self._json(result)
-        
-        else:
-            self._json({"endpoints": ["/health", "/stats", "/migrate", "/search (POST)"]})
-    
-    def do_POST(self):
-        length = int(self.headers.get("Content-Length", 0))
-        body = json.loads(self.rfile.read(length)) if length else {}
-        url = urlparse(self.path)
-        
-        if url.path == "/search":
-            embedding = body.get("embedding", [])
-            topk = body.get("topk", 10)
-            filter_expr = body.get("filter")
-            if not embedding:
-                self._json({"error": "missing embedding"}, 400)
-                return
-            result = search(embedding, topk, filter_expr)
-            self._json(result)
-        
-        elif url.path == "/index":
-            docs_data = body.get("docs", [])
-            if not docs_data:
-                self._json({"error": "missing docs"}, 400)
-                return
-            # Auto-init collection on first index call
-            global collection
-            if collection is None:
-                dim = len(docs_data[0]["embedding"]) if docs_data and "embedding" in docs_data[0] else 256
-                get_or_create_collection(dim)
-            docs = []
-            for d in docs_data:
-                doc_id = str(d["id"]).replace(":", "_").replace("/", "_").replace(" ", "_")
-                doc = zvec.Doc(doc_id)
-                doc.vectors["dense"] = d["embedding"]
-                doc.fields["text"] = d.get("text", "")
-                doc.fields["path"] = d.get("path", "")
-                doc.fields["source"] = d.get("source", "")
-                doc.fields["start_line"] = d.get("start_line", 0)
-                doc.fields["end_line"] = d.get("end_line", 0)
-                doc.fields["updated_at"] = int(time.time())
-                docs.append(doc)
-            collection.upsert(docs)
-            collection.flush()
-            collection.optimize()
-            collection.create_index("dense", zvec.HnswIndexParam())
-            self._json({"indexed": len(docs)})
-        
-        else:
-            self._json({"error": "unknown endpoint"}, 404)
+# --- Endpoints ---
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "engine": "zvec", "version": zvec.__version__}
+
+
+@app.get("/stats")
+async def stats():
+    if collection:
+        try:
+            s = collection.stats()
+            total_docs = s.get("total_docs", 0) if isinstance(s, dict) else 0
+        except:
+            total_docs = 0
+        return {"total_docs": total_docs, "dim": DIM, "path": DATA_DIR, "status": "loaded"}
+    else:
+        return {"total_docs": 0, "dim": DIM, "path": DATA_DIR, "status": "uninitialized"}
+
+
+@app.get("/migrate")
+async def migrate():
+    return migrate_from_sqlite()
+
+
+@app.get("/")
+async def root():
+    return {"endpoints": ["/health", "/stats", "/migrate", "/search (POST)"]}
+
+
+@app.post("/search")
+async def search_endpoint(req: SearchRequest):
+    if not req.embedding:
+        raise HTTPException(status_code=400, detail="missing embedding")
+    result = do_search(req.embedding, req.topk, req.filter)
+    return result
+
+
+@app.post("/index")
+async def index_endpoint(req: IndexRequest):
+    if not req.docs:
+        raise HTTPException(status_code=400, detail="missing docs")
+
+    global collection
+    if collection is None:
+        dim = len(req.docs[0].embedding) if req.docs and req.docs[0].embedding else 256
+        get_or_create_collection(dim)
+
+    docs = []
+    for d in req.docs:
+        doc_id = str(d.id).replace(":", "_").replace("/", "_").replace(" ", "_")
+        doc = zvec.Doc(doc_id)
+        doc.vectors["dense"] = d.embedding
+        doc.fields["text"] = d.text
+        doc.fields["path"] = d.path
+        doc.fields["source"] = d.source
+        doc.fields["start_line"] = d.start_line
+        doc.fields["end_line"] = d.end_line
+        doc.fields["updated_at"] = int(time.time())
+        docs.append(doc)
+
+    collection.upsert(docs)
+    collection.flush()
+    collection.optimize()
+    collection.create_index("dense", zvec.HnswIndexParam())
+    return {"indexed": len(docs)}
 
 
 if __name__ == "__main__":
     print(f"zvec-memory v{zvec.__version__} starting on port {PORT}")
-    
-    # Try to open existing collection or wait for migration
+
     col_path = os.path.join(DATA_DIR, "memory")
     if os.path.exists(col_path):
         collection = zvec.open(col_path)
         print(f"Loaded collection from {col_path}")
     else:
         print("No collection yet. Call GET /migrate to import from SQLite.")
-    
-    server = HTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"Listening on http://127.0.0.1:{PORT}")
-    server.serve_forever()
+
+    # Single worker when run directly (collection is not fork-safe)
+    uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="info")
