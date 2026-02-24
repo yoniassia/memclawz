@@ -444,6 +444,109 @@ Sub-agents:      8 (TradeClaw, MarketClaw, DevClaw, InfraClaw...)
 
 The key insight: your main agent becomes a **lightweight orchestrator** that routes to specialists. All agents share memory via memclawz fleet server. No agent loads more than ~2K tokens of skills.
 
+## Dispatch Pattern — Memory-Aware Sub-Agent Routing
+
+> **Best Practice: Every request spawns a domain expert sub-agent, pre-loaded with relevant memory.**
+
+This is the recommended architecture after running the context optimizer. Your main agent becomes a fast dispatcher that never blocks:
+
+```
+┌──────────────────────────────────────────────────────┐
+│  User message arrives                                │
+│                                                      │
+│  Step 1: CLASSIFY (main agent, <1s)                  │
+│  ├─ What domain? (marketing, compliance, code, etc.) │
+│  └─ Simple enough to handle directly? (ping, status) │
+│                                                      │
+│  Step 2: SEARCH MEMCLAWZ (main agent, ~30ms)         │
+│  ├─ Extract 2-3 key terms from request               │
+│  ├─ POST /search_text → top 5 relevant chunks        │
+│  └─ Gather: past decisions, files, context            │
+│                                                      │
+│  Step 3: ACK USER (main agent, instant)              │
+│  └─ "🔄 Spinning up TradeClaw for this..."           │
+│                                                      │
+│  Step 4: SPAWN (main agent → sub-agent)              │
+│  ├─ Task description + pre-loaded memclawz context   │
+│  ├─ memclawz search instructions for live queries    │
+│  └─ Main is FREE for next message immediately        │
+│                                                      │
+│  Step 5: WORK (sub-agent, autonomous)                │
+│  ├─ Searches memclawz for deeper context as needed   │
+│  ├─ Uses `read` to load full files from results      │
+│  ├─ Does the actual work with domain expertise        │
+│  └─ Result auto-announces back to chat               │
+└──────────────────────────────────────────────────────┘
+```
+
+### Why This Matters
+
+| Problem | Without Dispatch | With Dispatch + memclawz |
+|---------|-----------------|--------------------------|
+| **Queue blocking** | Main stuck on long tasks, messages pile up | Main free in <2s, parallel work |
+| **Context bloat** | Main session fills up doing everything | Each sub-agent starts fresh |
+| **Blind agents** | Sub-agents know nothing about past work | Pre-loaded with relevant history |
+| **Domain expertise** | One generalist agent | Specialized agents per domain |
+| **Memory loss** | Sub-agents can't search history mid-task | Live memclawz access via curl |
+
+### Implementation — Add to AGENTS.md
+
+```markdown
+## Sub-Agent Routing — DISPATCH BY DEFAULT
+
+**Rule: Every request that requires work → spawn a sub-agent. Main stays lightweight.**
+
+### When NOT to spawn (handle directly):
+- Simple questions (<1 tool call): weather, time, "what's X?"
+- Pings, greetings, status checks
+- Memory lookups that take <5 seconds
+- Yes/no confirmations
+
+### Routing Table:
+| Domain | Agent | Triggers |
+|--------|-------|----------|
+| 🎯 MarketClaw | copy, SEO, CRO, email, ads | "write copy", "landing page", "SEO" |
+| 💰 TradeClaw | brand, compliance, creatives | "brand", "compliance", "disclaimer" |
+| 📋 StrategyClaw | roadmaps, pricing, OKRs | "strategy", "pricing", "roadmap" |
+| 🔍 ResearchClaw | research, surveys, feedback | "research", "compare", "find out" |
+| 🛠️ BuildClaw | code, servers, APIs | "build", "deploy", "fix", "code" |
+| 🔧 UtilityClaw | everything else | fallback |
+
+### Pre-Spawn Context Loading:
+Before spawning, **always** search memclawz:
+1. Extract key terms from the request
+2. Query `POST http://127.0.0.1:4010/search_text` with `{"text": "[terms]", "topk": 5}`
+3. Include results in spawn task as "Past Context"
+
+### Spawn Template:
+` ` `
+# Step 1: Search memclawz for context
+curl -s -X POST http://127.0.0.1:4010/search_text \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"[request keywords]","topk":5}'
+
+# Step 2: Spawn with context + live memory access
+sessions_spawn(
+  task="[Task]\n\n## Past Context (from memclawz):\n[results]\n\n
+## Memory Access:\nSearch memclawz during work:\n
+curl -s -X POST http://127.0.0.1:4010/search_text \
+  -H 'Content-Type: application/json' \
+  -d '{\"text\":\"query\",\"topk\":5}'\n
+ALWAYS search before starting to find relevant history.",
+  label="[domain]-[short-desc]"
+)
+` ` `
+```
+
+### Results (Real-World)
+
+With this pattern on a workspace of 833 files / 17,461 chunks:
+- **Dispatch latency:** <2 seconds (classify + memclawz search + ack)
+- **Context quality:** Sub-agents find past campaigns, compliance rules, decisions in 30ms
+- **Queue depth:** Always 0 (main never blocks)
+- **Parallel work:** Multiple sub-agents running simultaneously
+- **Memory continuity:** Sub-agents pick up where previous work left off
+
 ## Roadmap
 
 - [x] QMD working memory layer

@@ -1,21 +1,53 @@
-#!/usr/bin/env python3.10
+#!/usr/bin/env python3
 """
-Embedder module for QMDZvec.
-Extracts embeddings from OpenClaw's SQLite memory DB (which already has them
-computed by node-llama-cpp with embeddinggemma-300m, 768-dim).
-For new text without pre-computed embeddings, uses the SQLite DB as a lookup
-or falls back to a simple TF-IDF approach for testing.
+Embedder module for memclawz — 100% LOCAL, zero external APIs.
+Uses sentence-transformers (all-mpnet-base-v2, 768-dim).
 """
 import json
 import os
 import sqlite3
+from typing import Optional, List
+
 import numpy as np
 
 SQLITE_PATH = os.environ.get("SQLITE_PATH", os.path.expanduser("~/.openclaw/memory/main.sqlite"))
-DIM = 768  # embeddinggemma-300m
+DIM = 768
+
+# Lazy-loaded local model
+_st_model = None
+LOCAL_MODEL_NAME = os.environ.get("EMBEDDING_MODEL", "all-mpnet-base-v2")
 
 
-def get_embedding_from_sqlite(text: str) -> list | None:
+def _get_local_model():
+    """Load sentence-transformers model (singleton, lazy). 100% local after first download."""
+    global _st_model
+    if _st_model is not None:
+        return _st_model
+    try:
+        from sentence_transformers import SentenceTransformer
+        print(f"Loading local embedding model: {LOCAL_MODEL_NAME}")
+        _st_model = SentenceTransformer(LOCAL_MODEL_NAME)
+        print(f"✅ Local embedding model loaded ({LOCAL_MODEL_NAME}, dim={_st_model.get_sentence_embedding_dimension()})")
+        return _st_model
+    except Exception as e:
+        print(f"⚠️  Failed to load local model: {e}")
+        return None
+
+
+def embed_local(text: str) -> Optional[list]:
+    """Generate embedding using local sentence-transformers model."""
+    model = _get_local_model()
+    if model is None:
+        return None
+    try:
+        emb = model.encode(text, normalize_embeddings=True)
+        return emb.tolist()
+    except Exception as e:
+        print(f"⚠️  Local embed failed: {e}")
+        return None
+
+
+def get_embedding_from_sqlite(text: str) -> Optional[list]:
     """Look up an embedding for exact text match in SQLite."""
     if not os.path.exists(SQLITE_PATH):
         return None
@@ -30,37 +62,15 @@ def get_embedding_from_sqlite(text: str) -> list | None:
     return None
 
 
-def get_all_embeddings(limit=None):
-    """Yield (id, text, path, embedding) tuples from SQLite."""
-    if not os.path.exists(SQLITE_PATH):
-        return
-    conn = sqlite3.connect(SQLITE_PATH)
-    conn.row_factory = sqlite3.Row
-    q = "SELECT id, text, path, embedding FROM chunks WHERE embedding IS NOT NULL ORDER BY id"
-    if limit:
-        q += f" LIMIT {int(limit)}"
-    for row in conn.execute(q):
-        emb = json.loads(row["embedding"]) if isinstance(row["embedding"], str) else list(row["embedding"])
-        yield row["id"], row["text"], row["path"], emb
-    conn.close()
-
-
-def random_embedding(dim=DIM) -> list:
-    """Generate a random unit embedding (for testing only)."""
-    v = np.random.randn(dim).astype(np.float32)
-    v /= np.linalg.norm(v) + 1e-9
-    return v.tolist()
-
-
-def text_to_embedding(text: str, dim=DIM) -> list:
-    """
-    Best-effort embedding for arbitrary text.
-    First tries SQLite lookup; falls back to deterministic hash-based embedding.
-    """
+def text_to_embedding(text: str, dim: int = DIM) -> list:
+    """Generate embedding — 100% local. SQLite cache → local model → hash fallback."""
     emb = get_embedding_from_sqlite(text)
     if emb:
         return emb
-    # Deterministic hash-based embedding (for testing/demo - not semantic)
+    emb = embed_local(text)
+    if emb:
+        return emb
+    # Last resort
     import hashlib
     h = hashlib.sha256(text.encode()).digest()
     np.random.seed(int.from_bytes(h[:4], 'big'))
