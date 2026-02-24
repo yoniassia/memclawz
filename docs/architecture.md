@@ -1,4 +1,4 @@
-# QMDZvec Architecture
+# memclawz Architecture
 
 ## The Problem
 
@@ -11,7 +11,7 @@ OpenClaw agents have a memory problem. They wake up fresh every session with no 
 
 ## The Solution: Three-Speed Memory
 
-QMDZvec introduces a three-layer memory architecture, each optimized for different access patterns:
+memclawz introduces a three-layer memory architecture, each optimized for different access patterns:
 
 ### Layer 0: QMD (Quick Memory Dump) — <1ms
 
@@ -48,7 +48,7 @@ A local HTTP service that combines two search strategies:
 
 ### Layer 2: MEMORY.md + memory_search — ~50ms
 
-OpenClaw's built-in memory. QMDZvec doesn't replace it — it adds faster layers on top.
+OpenClaw's built-in memory. memclawz doesn't replace it — it adds faster layers on top.
 
 ## Data Flow
 
@@ -101,7 +101,7 @@ Old daily logs (>30 days) → archive/
 
 ## Why This Matters for OpenClaw
 
-OpenClaw's `memory_search` is a solid foundation — semantic search over markdown files with local embeddings. QMDZvec extends it by:
+OpenClaw's `memory_search` is a solid foundation — semantic search over markdown files with local embeddings. memclawz extends it by:
 
 1. **Adding a structured working memory layer** that survives session restarts
 2. **Keeping the search index fresh** via automatic re-indexing

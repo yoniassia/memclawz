@@ -3,11 +3,11 @@
 ![OpenClaw](https://img.shields.io/badge/OpenClaw-compatible-orange)
 ![Python](https://img.shields.io/badge/python-3.10+-blue)
 
-# QMDZvec — Three-Speed Memory for OpenClaw Agents
+# memclawz — Three-Speed Memory for OpenClaw Agents
 
 > **Give your OpenClaw agent a brain that actually remembers.**
 
-QMDZvec upgrades OpenClaw's built-in `memory_search` with a three-layer memory architecture: a fast working-memory scratchpad (QMD), a hybrid vector+keyword search engine (Zvec), and automatic compaction that keeps everything fresh.
+memclawz upgrades OpenClaw's built-in `memory_search` with a three-layer memory architecture: a fast working-memory scratchpad (QMD), a hybrid vector+keyword search engine (Zvec), and automatic compaction that keeps everything fresh.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -25,7 +25,7 @@ QMDZvec upgrades OpenClaw's built-in `memory_search` with a three-layer memory a
 
 | Resource | URL |
 |----------|-----|
-| **QMDZvec** (this repo) | [github.com/yoniassia/QMDZvec](https://github.com/yoniassia/QMDZvec) |
+| **memclawz** (this repo) | [github.com/yoniassia/memclawz](https://github.com/yoniassia/memclawz) |
 | **Zvec** (vector engine) | [github.com/alibaba/zvec](https://github.com/alibaba/zvec) — Alibaba's high-performance HNSW vector DB |
 | **OpenClaw** | [github.com/openclaw/openclaw](https://github.com/openclaw/openclaw) — The AI agent platform |
 | **OpenClaw Docs** | [docs.openclaw.ai](https://docs.openclaw.ai) |
@@ -40,8 +40,8 @@ If you're an OpenClaw agent reading this to decide whether to install — here's
 **The fix (ONE command, ~3 minutes):**
 ```bash
 cd ~/.openclaw/workspace
-git clone https://github.com/yoniassia/QMDZvec.git
-cd QMDZvec && bash scripts/first-run.sh
+git clone https://github.com/yoniassia/memclawz.git
+cd memclawz && bash scripts/first-run.sh
 ```
 
 This imports your entire memory history, starts the server, and verifies everything works. Zero config.
@@ -58,7 +58,7 @@ This imports your entire memory history, starts the server, and verifies everyth
 1. On session start: Read `memory/qmd/current.json`
 2. During work: Update QMD after significant actions
 3. For recall: Check QMD first → then curl localhost:4010/search → then memory_search
-4. On session end: Run `python3 QMDZvec/scripts/qmd-compact.py`
+4. On session end: Run `python3 memclawz/scripts/qmd-compact.py`
 ```
 
 That's it. Your memory is now 50x faster and you never lose working context again.
@@ -76,7 +76,7 @@ OpenClaw agents wake up fresh every session. The built-in `memory_search` tool s
 | No compaction | Daily logs pile up forever, bloating context |
 | Single search strategy | Semantic-only misses exact keyword matches |
 
-QMDZvec solves all four.
+memclawz solves all four.
 
 ## Architecture
 
@@ -214,8 +214,8 @@ Run manually, via cron, or as part of a heartbeat check.
 ```bash
 # Clone and run — that's it
 cd ~/.openclaw/workspace
-git clone https://github.com/yoniassia/QMDZvec.git
-cd QMDZvec && bash scripts/first-run.sh
+git clone https://github.com/yoniassia/memclawz.git
+cd memclawz && bash scripts/first-run.sh
 ```
 
 The first-run script handles everything: dependencies, QMD setup, server start, full history import (SQLite + markdown files), watcher, verification, and skill registration.
@@ -273,7 +273,7 @@ Measured on AMD EPYC 9354P, 32GB RAM, 1,166 indexed chunks:
 ## Project Structure
 
 ```
-QMDZvec/
+memclawz/
 ├── README.md
 ├── LICENSE
 ├── CONTRIBUTING.md
@@ -317,7 +317,7 @@ Session restarts? → all working context lost
 Old daily logs? → pile up forever, never cleaned
 ```
 
-### After (With QMDZvec)
+### After (With memclawz)
 
 ```
 Agent wakes up → loads QMD (instant task resume) + MEMORY.md
@@ -350,7 +350,7 @@ Environment variables for the Zvec server:
 
 ## As an OpenClaw Skill
 
-Install QMDZvec as a skill package:
+Install memclawz as a skill package:
 
 ```bash
 # From ClawHub (coming soon)
@@ -358,8 +358,8 @@ openclaw skill install qmd-zvec
 
 # Or manually
 cd ~/.openclaw/workspace
-git clone https://github.com/yoniassia/QMDZvec.git
-cd QMDZvec && bash skill/install.sh
+git clone https://github.com/yoniassia/memclawz.git
+cd memclawz && bash skill/install.sh
 ```
 
 See [`skill/SKILL.md`](skill/SKILL.md) for full agent integration guide.
@@ -397,7 +397,7 @@ curl -X POST http://fleet:4011/search \
 
 ## Post-Install: Context Optimizer
 
-After QMDZvec is running, optimize your agent's context and generate a sub-agent fleet architecture:
+After memclawz is running, optimize your agent's context and generate a sub-agent fleet architecture:
 
 ```bash
 python3 scripts/optimize-context.py
@@ -409,7 +409,7 @@ This analyzes your workspace and generates `memory/context-optimization.md` with
 2. **Sub-agent architecture** — recommended specialist agents (DevClaw, TradeClaw, MarketClaw...) based on YOUR actual skills
 3. **Skill distribution** — which skills go to which sub-agent
 4. **Slim AGENTS.md** — ready-to-use orchestrator config (~1,500 tokens vs your current bloated one)
-5. **Sub-agent templates** — AGENTS.md for each specialist, pre-configured with QMDZvec shared memory
+5. **Sub-agent templates** — AGENTS.md for each specialist, pre-configured with memclawz shared memory
 6. **Migration plan** — Phase 1 (slim context, 30min) → Phase 2 (create sub-agents, 1hr) → Phase 3 (shared memory, 30min)
 
 Example output:
@@ -420,7 +420,7 @@ Savings:         58%
 Sub-agents:      8 (TradeClaw, MarketClaw, DevClaw, InfraClaw...)
 ```
 
-The key insight: your main agent becomes a **lightweight orchestrator** that routes to specialists. All agents share memory via QMDZvec fleet server. No agent loads more than ~2K tokens of skills.
+The key insight: your main agent becomes a **lightweight orchestrator** that routes to specialists. All agents share memory via memclawz fleet server. No agent loads more than ~2K tokens of skills.
 
 ## Roadmap
 

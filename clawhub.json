@@ -4,7 +4,7 @@
   "description": "Three-Speed Memory for OpenClaw Agents — QMD working memory + Zvec hybrid search + auto-compaction",
   "author": "yoniassia",
   "license": "MIT",
-  "repository": "https://github.com/yoniassia/QMDZvec",
+  "repository": "https://github.com/yoniassia/memclawz",
   "skills": ["skill/SKILL.md"],
   "keywords": ["memory", "vector-search", "ai-agents", "qmd", "openclaw", "hnsw"],
   "engines": {

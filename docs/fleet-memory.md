@@ -223,7 +223,7 @@ python3.10 zvec/fleet_server.py --dim 768 --port 4011
 ### 1. Start Fleet Server
 
 ```bash
-cd QMDZvec
+cd memclawz
 python3.10 zvec/fleet_server.py --port 4011 --api-key my-secret &
 ```
 

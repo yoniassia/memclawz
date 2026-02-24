@@ -1,4 +1,4 @@
-# QMDZvec — Three-Speed Memory Skill
+# memclawz — Three-Speed Memory Skill
 
 > Give your OpenClaw agent structured working memory, fast vector search, and automatic compaction.
 
@@ -6,8 +6,8 @@
 
 ```bash
 cd ~/.openclaw/workspace
-git clone https://github.com/yoniassia/QMDZvec.git
-cd QMDZvec && bash scripts/first-run.sh
+git clone https://github.com/yoniassia/memclawz.git
+cd memclawz && bash scripts/first-run.sh
 ```
 
 This single command will:

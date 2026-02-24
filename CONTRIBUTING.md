@@ -1,12 +1,12 @@
-# Contributing to QMDZvec
+# Contributing to memclawz
 
 Thanks for your interest in improving agent memory! 🧠
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/yoniassia/QMDZvec.git
-cd QMDZvec
+git clone https://github.com/yoniassia/memclawz.git
+cd memclawz
 pip install zvec numpy pytest
 
 # Start the server
