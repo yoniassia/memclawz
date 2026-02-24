@@ -89,7 +89,7 @@ if [ "$SERVER_ALREADY_RUNNING" = "0" ]; then
     echo ""
     echo "🚀 Starting Zvec server on port $ZVEC_PORT..."
     cd "$REPO_DIR"
-    nohup "$PYTHON" zvec/server.py > /tmp/zvec-server.log 2>&1 &
+    nohup "$PYTHON" memclawz_server/server.py > /tmp/zvec-server.log 2>&1 &
     ZVEC_PID=$!
     # Wait for server
     for i in $(seq 1 15); do
@@ -111,9 +111,9 @@ bash "$SCRIPT_DIR/bootstrap-history.sh"
 echo ""
 echo "👁️  Starting auto-indexing watcher..."
 # Kill existing watcher if any
-pkill -f "zvec/watcher.py" 2>/dev/null || true
+pkill -f "memclawz_server/watcher.py" 2>/dev/null || true
 cd "$REPO_DIR"
-nohup "$PYTHON" zvec/watcher.py > /tmp/zvec-watcher.log 2>&1 &
+nohup "$PYTHON" memclawz_server/watcher.py > /tmp/zvec-watcher.log 2>&1 &
 ok "Watcher running (PID $!)"
 
 # ── 9. Verify ───────────────────────────────────────────

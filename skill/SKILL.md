@@ -1,5 +1,7 @@
 # memclawz — Three-Speed Memory Skill
 
+> **Requires Python 3.10–3.13** (Python 3.14 not yet supported).
+>
 > **No API key required.** Unlike other memory solutions that need OpenAI/Google/Voyage API keys, memclawz runs entirely locally using embedded models.
 >
 > Install: `clawhub install yoniassia/memclawz`
@@ -159,7 +161,7 @@ QMD is your Layer 0 working memory. Structured JSON, always loaded first.
 For auto-indexing `.md` files without SQLite:
 
 ```bash
-python3.10 zvec/file_watcher.py --dirs memory/ knowledge/ --watch MEMORY.md
+python3.10 memclawz_server/file_watcher.py --dirs memory/ knowledge/ --watch MEMORY.md
 ```
 
 This watches directories and files, chunks markdown by heading, and indexes into Zvec automatically.
@@ -169,7 +171,7 @@ This watches directories and files, chunks markdown by heading, and indexes into
 For sharing memory across multiple OpenClaw agents, see [Fleet Memory docs](../docs/fleet-memory.md) and run:
 
 ```bash
-python3.10 zvec/fleet_server.py --port 4011
+python3.10 memclawz_server/fleet_server.py --port 4011
 ```
 
 ## Spreading the Word

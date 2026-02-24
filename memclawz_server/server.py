@@ -1,10 +1,11 @@
 #!/usr/bin/env python3.10
 """
-zvec-memory: Fast vector memory service for OpenClaw
+memclawz-server: Fast vector memory service for OpenClaw
 FastAPI + uvicorn with Pydantic validation, CORS, multi-worker support
 """
 import json
 import os
+import signal
 import sys
 import time
 import sqlite3
@@ -22,13 +23,15 @@ PORT = int(os.environ.get("ZVEC_PORT", "4010"))
 DATA_DIR = os.environ.get("ZVEC_DATA", os.path.expanduser("~/.openclaw/zvec-memory"))
 SQLITE_PATH = os.environ.get("SQLITE_PATH", os.path.expanduser("~/.openclaw/memory/main.sqlite"))
 WORKERS = int(os.environ.get("ZVEC_WORKERS", "2"))
-DIM = 768
+
+# Auto-detected from first embedding (no hardcoded DIM)
+DIM = None
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
 collection = None
 
-app = FastAPI(title="zvec-memory", description="Fast vector memory service for OpenClaw")
+app = FastAPI(title="memclawz-server", description="Fast vector memory service for OpenClaw")
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,6 +39,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# --- Signal handlers for clean shutdown (#12) ---
+
+def _shutdown(signum, frame):
+    """Flush collection and exit cleanly on SIGTERM/SIGINT."""
+    global collection
+    sig_name = signal.Signals(signum).name
+    print(f"\n[memclawz] Received {sig_name}, shutting down gracefully...")
+    if collection is not None:
+        try:
+            collection.flush()
+            print("[memclawz] Collection flushed.")
+        except Exception as e:
+            print(f"[memclawz] Flush error: {e}")
+    # Remove stale lock files
+    lock_path = os.path.join(DATA_DIR, "memory", ".lock")
+    if os.path.exists(lock_path):
+        try:
+            os.remove(lock_path)
+            print(f"[memclawz] Removed lock file: {lock_path}")
+        except Exception:
+            pass
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, _shutdown)
+signal.signal(signal.SIGINT, _shutdown)
 
 
 # --- Pydantic models ---
@@ -74,36 +104,70 @@ class SearchResponse(BaseModel):
     count: int
 
 
-# --- Core logic (unchanged) ---
+# --- Core logic ---
+
+def ensure_collection(dim: int = 768, max_retries: int = 5) -> Any:
+    """Open or create collection with retry+backoff (#12, #18)."""
+    global collection, DIM
+    col_path = os.path.join(DATA_DIR, "memory")
+    waits = [2, 4, 6, 8, 10]
+
+    for attempt in range(max_retries):
+        try:
+            # Remove stale lock files before retrying
+            lock_path = os.path.join(col_path, ".lock")
+            if attempt > 0 and os.path.exists(lock_path):
+                try:
+                    os.remove(lock_path)
+                    print(f"[memclawz] Removed stale lock file (attempt {attempt+1})")
+                except Exception:
+                    pass
+
+            if os.path.exists(col_path):
+                collection = zvec.open(col_path)
+                # Try to detect dim from existing collection
+                try:
+                    s = collection.stats
+                    if hasattr(s, 'dim'):
+                        DIM = s.dim
+                    else:
+                        DIM = dim
+                except Exception:
+                    DIM = dim
+                print(f"[memclawz] Opened existing collection (dim={DIM})")
+            else:
+                DIM = dim
+                schema = zvec.CollectionSchema(
+                    name="memory",
+                    vectors=[
+                        zvec.VectorSchema("dense", zvec.DataType.VECTOR_FP32, dim),
+                    ],
+                    fields=[
+                        zvec.FieldSchema("text", zvec.DataType.STRING),
+                        zvec.FieldSchema("path", zvec.DataType.STRING),
+                        zvec.FieldSchema("source", zvec.DataType.STRING),
+                        zvec.FieldSchema("start_line", zvec.DataType.INT32),
+                        zvec.FieldSchema("end_line", zvec.DataType.INT32),
+                        zvec.FieldSchema("updated_at", zvec.DataType.INT64),
+                    ]
+                )
+                collection = zvec.create_and_open(col_path, schema)
+                print(f"[memclawz] Created new collection at {col_path} (dim={dim})")
+            return collection
+
+        except Exception as e:
+            wait = waits[min(attempt, len(waits)-1)]
+            print(f"[memclawz] Collection open failed (attempt {attempt+1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                print(f"[memclawz] Retrying in {wait}s...")
+                time.sleep(wait)
+            else:
+                raise RuntimeError(f"Failed to open collection after {max_retries} attempts: {e}")
+
 
 def get_or_create_collection(dim=256):
-    global collection, DIM
-    DIM = dim
-    col_path = os.path.join(DATA_DIR, "memory")
-
-    schema = zvec.CollectionSchema(
-        name="memory",
-        vectors=[
-            zvec.VectorSchema("dense", zvec.DataType.VECTOR_FP32, dim),
-        ],
-        fields=[
-            zvec.FieldSchema("text", zvec.DataType.STRING),
-            zvec.FieldSchema("path", zvec.DataType.STRING),
-            zvec.FieldSchema("source", zvec.DataType.STRING),
-            zvec.FieldSchema("start_line", zvec.DataType.INT32),
-            zvec.FieldSchema("end_line", zvec.DataType.INT32),
-            zvec.FieldSchema("updated_at", zvec.DataType.INT64),
-        ]
-    )
-
-    if os.path.exists(col_path):
-        collection = zvec.open(col_path)
-        print(f"Opened existing collection: {collection.stats}")
-    else:
-        collection = zvec.create_and_open(col_path, schema)
-        print(f"Created new collection at {col_path}")
-
-    return collection
+    """Wrapper kept for backward compat."""
+    return ensure_collection(dim=dim)
 
 
 def migrate_from_sqlite():
@@ -129,11 +193,10 @@ def migrate_from_sqlite():
     dim = len(first_emb)
     print(f"Detected embedding dimension: {dim}")
 
-    # Reuse existing collection if already open with matching dim
     if collection is not None and DIM == dim:
         col = collection
     else:
-        col = get_or_create_collection(dim)
+        col = ensure_collection(dim)
 
     docs = []
     skipped = 0
@@ -173,6 +236,14 @@ def migrate_from_sqlite():
     return {"migrated": len(docs), "skipped": skipped, "dimension": dim}
 
 
+def _compat_query(vq, **kwargs):
+    """Compat wrapper: try query() first, fallback to search() (#14)."""
+    try:
+        return collection.query(vq, **kwargs)
+    except AttributeError:
+        return collection.search(vq, **kwargs)
+
+
 def do_search(query_embedding, topk=10, filter_expr=None):
     """Search the zvec collection"""
     if collection is None:
@@ -183,7 +254,7 @@ def do_search(query_embedding, topk=10, filter_expr=None):
     if filter_expr:
         kwargs["filter"] = filter_expr
 
-    results = collection.query(vq, **kwargs)
+    results = _compat_query(vq, **kwargs)
 
     out = []
     for r in results:
@@ -210,20 +281,32 @@ async def health():
     return {"status": "ok", "engine": "zvec", "version": zvec.__version__}
 
 
+@app.get("/info")
+async def info():
+    """Show current collection info including dimension (#13)."""
+    return {
+        "dim": DIM,
+        "data_dir": DATA_DIR,
+        "collection_loaded": collection is not None,
+        "engine": "zvec",
+        "version": zvec.__version__,
+    }
+
+
 @app.get("/stats")
 async def stats():
     if collection:
         try:
             s = collection.stats
             total_docs = s.doc_count if hasattr(s, 'doc_count') else 0
-            # zvec doc_count may return 0 even with data; use search as fallback
             if total_docs == 0:
                 try:
-                    vq = zvec.VectorQuery("dense", vector=[0.0]*DIM)
-                    results = collection.query(vector_query=[vq], topk=1)
+                    dim = DIM or 768
+                    vq = zvec.VectorQuery("dense", vector=[0.0]*dim)
+                    results = _compat_query(vq, topk=1)
                     total_docs = len(results) if results else 0
                     if total_docs > 0:
-                        total_docs = "295+"  # approximate — search works
+                        total_docs = "295+"
                 except:
                     pass
         except:
@@ -240,7 +323,7 @@ async def migrate():
 
 @app.get("/")
 async def root():
-    return {"endpoints": ["/health", "/stats", "/migrate", "/search (POST)"]}
+    return {"endpoints": ["/health", "/stats", "/info", "/migrate", "/search (POST)", "/index (POST)"]}
 
 
 @app.post("/search")
@@ -256,13 +339,30 @@ async def index_endpoint(req: IndexRequest):
     if not req.docs:
         raise HTTPException(status_code=400, detail="missing docs")
 
-    global collection
+    global collection, DIM
+
+    # Auto-detect dimension from first embedding (#13, #18)
+    incoming_dim = len(req.docs[0].embedding) if req.docs and req.docs[0].embedding else None
+
     if collection is None:
-        dim = len(req.docs[0].embedding) if req.docs and req.docs[0].embedding else 256
-        get_or_create_collection(dim)
+        dim = incoming_dim or 256
+        ensure_collection(dim)
+    elif DIM is not None and incoming_dim is not None and incoming_dim != DIM:
+        # Dimension validation (#13)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Embedding dimension mismatch: got {incoming_dim}, expected {DIM}. "
+                   f"Collection was created with dim={DIM}."
+        )
 
     docs = []
     for d in req.docs:
+        # Validate each doc's dimension
+        if DIM is not None and len(d.embedding) != DIM:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Doc '{d.id}' has dim {len(d.embedding)}, expected {DIM}"
+            )
         doc_id = str(d.id).replace(":", "_").replace("/", "_").replace(" ", "_")
         doc = zvec.Doc(doc_id)
         doc.vectors["dense"] = d.embedding
@@ -282,14 +382,13 @@ async def index_endpoint(req: IndexRequest):
 
 
 if __name__ == "__main__":
-    print(f"zvec-memory v{zvec.__version__} starting on port {PORT}")
+    print(f"memclawz-server v{zvec.__version__} starting on port {PORT}")
 
     col_path = os.path.join(DATA_DIR, "memory")
     if os.path.exists(col_path):
-        collection = zvec.open(col_path)
+        ensure_collection()
         print(f"Loaded collection from {col_path}")
     else:
-        print("No collection yet. Call GET /migrate to import from SQLite.")
+        print("No collection yet. Call GET /migrate or POST /index to create one.")
 
-    # Single worker when run directly (collection is not fork-safe)
     uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="info")

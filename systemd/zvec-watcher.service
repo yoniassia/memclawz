@@ -7,7 +7,7 @@ Requires=zvec-server.service
 Type=simple
 User=%i
 WorkingDirectory=%h/.openclaw/workspace/QMDZvec
-ExecStart=/usr/bin/python3.10 zvec/watcher.py
+ExecStart=/usr/bin/python3.10 memclawz_server/watcher.py
 Restart=on-failure
 RestartSec=10
 

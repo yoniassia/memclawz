@@ -8,7 +8,7 @@
   "skills": ["skill/SKILL.md"],
   "keywords": ["memory", "vector-search", "long-term-memory", "memory-upgrade", "embeddings", "fast-memory", "hnsw", "qmd", "openclaw", "ai-agents", "local-embeddings", "no-api-key"],
   "engines": {
-    "python": ">=3.10"
+    "python": ">=3.10,<3.14"
   },
   "dependencies": {
     "zvec": ">=0.2.0",
@@ -17,9 +17,9 @@
   "install": "bash skill/install.sh",
   "components": {
     "qmd": "qmd/",
-    "zvec-server": "zvec/server.py",
-    "file-watcher": "zvec/file_watcher.py",
-    "fleet-server": "zvec/fleet_server.py",
+    "zvec-server": "memclawz_server/server.py",
+    "file-watcher": "memclawz_server/file_watcher.py",
+    "fleet-server": "memclawz_server/fleet_server.py",
     "compaction": "scripts/qmd-compact.py"
   },
   "ports": {

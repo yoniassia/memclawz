@@ -34,7 +34,7 @@ One Fleet Memory server runs centrally. All agents connect via HTTP.
 
 ```bash
 # On the central server
-python3.10 zvec/fleet_server.py --port 4011 --api-key fleet-secret-123
+python3.10 memclawz_server/fleet_server.py --port 4011 --api-key fleet-secret-123
 
 # From any agent
 curl -X POST http://fleet-server:4011/index \
@@ -209,13 +209,13 @@ Set `--api-key` when starting the server. All requests must include `X-API-Key` 
 
 ```bash
 # Basic (no auth)
-python3.10 zvec/fleet_server.py --port 4011
+python3.10 memclawz_server/fleet_server.py --port 4011
 
 # Production (with auth)
-python3.10 zvec/fleet_server.py --port 4011 --api-key $FLEET_API_KEY --data /var/lib/fleet-memory
+python3.10 memclawz_server/fleet_server.py --port 4011 --api-key $FLEET_API_KEY --data /var/lib/fleet-memory
 
 # Custom dimensions
-python3.10 zvec/fleet_server.py --dim 768 --port 4011
+python3.10 memclawz_server/fleet_server.py --dim 768 --port 4011
 ```
 
 ## Setup Guide
@@ -224,7 +224,7 @@ python3.10 zvec/fleet_server.py --dim 768 --port 4011
 
 ```bash
 cd memclawz
-python3.10 zvec/fleet_server.py --port 4011 --api-key my-secret &
+python3.10 memclawz_server/fleet_server.py --port 4011 --api-key my-secret &
 ```
 
 ### 2. Configure Each Agent

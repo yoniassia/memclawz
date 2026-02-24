@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=%i
 WorkingDirectory=%h/.openclaw/workspace/QMDZvec
-ExecStart=/usr/bin/python3.10 zvec/server.py
+ExecStart=/usr/bin/python3.10 memclawz_server/server.py
 Restart=on-failure
 RestartSec=5
 Environment=ZVEC_PORT=4010

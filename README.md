@@ -180,7 +180,7 @@ A structured JSON scratchpad that tracks what the agent is working on *right now
 - **Session end:** Completed tasks compact to daily log, active tasks persist
 - **Weekly:** Important decisions promote to `MEMORY.md`
 
-### 2. Zvec Server (`zvec/server.py`)
+### 2. Zvec Server (`memclawz_server/server.py`)
 
 A local HTTP vector search service using [Zvec](https://github.com/alivx/zvec) with HNSW indexing and BM25 keyword search.
 
@@ -201,7 +201,7 @@ A local HTTP vector search service using [Zvec](https://github.com/alivx/zvec) w
 | POST | `/index` | Index new documents `{docs: [...]}` |
 | GET | `/migrate` | One-time import from OpenClaw SQLite |
 
-### 3. Auto-Indexing Watcher (`zvec/watcher.py`)
+### 3. Auto-Indexing Watcher (`memclawz_server/watcher.py`)
 
 Monitors OpenClaw's memory SQLite database and automatically syncs new chunks to Zvec every 60 seconds.
 
@@ -228,7 +228,7 @@ Run manually, via cron, or as part of a heartbeat check.
 ### Prerequisites
 
 - **OpenClaw** installed and running ([docs.openclaw.ai](https://docs.openclaw.ai))
-- **Python 3.10+**
+- **Python 3.10–3.13** (Python 3.14 is not yet supported due to dependency compatibility issues with `zvec` and `numpy`)
 - **pip** packages: `zvec`, `numpy`
 
 ### Quick Start (One Command)
@@ -304,13 +304,15 @@ memclawz/
 ├── qmd/
 │   ├── schema.json           # QMD JSON schema
 │   └── current.json.example  # Example QMD state
-├── zvec/
+├── memclawz_server/
 │   ├── server.py             # Zvec HTTP search server
+│   ├── embed_server.py       # Standalone embedding server (port 4020)
 │   ├── fleet_server.py       # Multi-tenant fleet memory server
 │   ├── file_watcher.py       # Direct .md file watcher + indexer
 │   ├── chunker.py            # Markdown chunking engine
 │   ├── watcher.py            # SQLite auto-indexing watcher
 │   ├── embedder.py           # Embedding utilities
+│   ├── embed_bridge.py       # Local GGUF embedding bridge
 │   └── search_client.py      # Python search client
 ├── skill/
 │   ├── SKILL.md              # OpenClaw skill instructions
@@ -403,7 +405,7 @@ Share memory across multiple OpenClaw agents with namespaced collections:
 
 ```bash
 # Start the fleet server
-python3.10 zvec/fleet_server.py --port 4011 --api-key my-secret
+python3.10 memclawz_server/fleet_server.py --port 4011 --api-key my-secret
 
 # Index from any agent
 curl -X POST http://fleet:4011/index \
@@ -554,7 +556,7 @@ With this pattern on a workspace of 833 files / 17,461 chunks:
 - [x] Auto-indexing watcher (SQLite → Zvec)
 - [x] Compaction script
 - [x] OpenClaw skill package (`skill/SKILL.md`)
-- [x] Direct file watcher (`zvec/file_watcher.py`)
+- [x] Direct file watcher (`memclawz_server/file_watcher.py`)
 - [x] Cross-agent memory sharing (Fleet Memory)
 - [x] ClawHub package manifest (`clawhub.json`)
 - [ ] Neo4j knowledge graph layer (entity extraction → graph)

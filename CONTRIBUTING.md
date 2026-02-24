@@ -10,7 +10,7 @@ cd memclawz
 pip install zvec numpy pytest
 
 # Start the server
-python3.10 zvec/server.py &
+python3.10 memclawz_server/server.py &
 
 # Run tests
 python3.10 -m pytest tests/ -v
@@ -42,7 +42,7 @@ python3.10 -m pytest tests/ -v
 
 ```bash
 # Start zvec server first
-python3.10 zvec/server.py &
+python3.10 memclawz_server/server.py &
 
 # Run all tests
 python3.10 -m pytest tests/ -v

@@ -18,7 +18,7 @@ mkdir -p "$ZVEC_DATA"
 
 # Copy server if not present
 if [ ! -f "$ZVEC_DATA/server.py" ]; then
-    cp zvec/server.py "$ZVEC_DATA/server.py"
+    cp memclawz_server/server.py "$ZVEC_DATA/server.py"
     echo "Installed server.py to $ZVEC_DATA"
 fi
 

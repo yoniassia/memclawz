@@ -10,7 +10,7 @@ ZVEC_URL="${ZVEC_URL:-http://localhost:4010}"
 TOPK="${TOPK:-5}"
 
 # Generate embedding via node
-EMBEDDING=$(node "$SCRIPT_DIR/zvec/_embed_node.mjs" "$MODEL" "$QUERY")
+EMBEDDING=$(node "$SCRIPT_DIR/memclawz_server/_embed_node.mjs" "$MODEL" "$QUERY")
 
 if [ -z "$EMBEDDING" ] || [ "$EMBEDDING" = "[]" ]; then
   echo "Error: Failed to generate embedding" >&2

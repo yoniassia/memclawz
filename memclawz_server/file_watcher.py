@@ -12,7 +12,10 @@ import sys
 import time
 import urllib.request
 
-from chunker import chunk_directory, chunk_file
+try:
+    from memclawz_server.chunker import chunk_directory, chunk_file
+except ImportError:
+    from chunker import chunk_directory, chunk_file
 
 ZVEC_URL = os.environ.get("ZVEC_URL", "http://localhost:4010")
 POLL_INTERVAL = int(os.environ.get("WATCH_INTERVAL", "30"))
@@ -68,16 +71,28 @@ class FileWatcher:
         return sorted(set(found))
 
     def _get_embedding(self, text: str) -> list[float] | None:
-        """Get embedding for text. Uses OpenClaw's embedding endpoint if available."""
-        # Try local embedding service
+        """Get embedding for text via memclawz_server/embed_server.py (port 4020).
+
+        Expected endpoint: POST http://localhost:4020/embed
+        Request body: {"texts": ["your text here"]}
+        Response: {"embeddings": [[0.1, 0.2, ...]]}
+
+        Start the embed server with:
+            python3.10 -m uvicorn memclawz_server.embed_server:app --port 4020
+
+        Falls back to hash-based pseudo-embedding if embed server is unavailable.
+        """
+        # Try local embedding service (memclawz_server/embed_server.py)
         try:
-            body = json.dumps({"text": text}).encode()
+            body = json.dumps({"texts": [text]}).encode()
             req = urllib.request.Request(
                 "http://localhost:4020/embed", data=body,
                 headers={"Content-Type": "application/json"}, method="POST"
             )
             resp = json.loads(urllib.request.urlopen(req, timeout=10).read())
-            return resp.get("embedding")
+            embeddings = resp.get("embeddings")
+            if embeddings and len(embeddings) > 0:
+                return embeddings[0]
         except Exception:
             pass
 
