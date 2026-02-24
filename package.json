@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "node-llama-cpp": "^3.16.2"
+  }
+}

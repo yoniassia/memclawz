@@ -79,4 +79,22 @@ def compact():
 
 
 if __name__ == "__main__":
-    compact()
+    import argparse
+    parser = argparse.ArgumentParser(description="QMD Compaction")
+    parser.add_argument("--auto", action="store_true",
+                        help="Silent mode for cron/heartbeat — no output unless work done")
+    args = parser.parse_args()
+
+    if args.auto:
+        # Silent mode: suppress output when nothing to do
+        import io, sys
+        buf = io.StringIO()
+        _orig_print = print
+        def print(*a, **kw):
+            _orig_print(*a, file=buf, **kw)
+        compact()
+        output = buf.getvalue()
+        if "Compacted" in output:
+            sys.stdout.write(output)
+    else:
+        compact()

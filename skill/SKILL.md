@@ -57,12 +57,23 @@ cat > memory/qmd/current.json << 'QMDEOF'
 QMDEOF
 ```
 
-### Searching Memory
+### Searching Memory (Recommended)
 
-Query Zvec for fast hybrid search:
+Use the search script for easy querying — it handles embedding + search in one step:
 
 ```bash
-# Search by embedding vector
+bash scripts/search.sh "what did we decide about the API design"
+```
+
+This generates an embedding locally, queries Zvec, and prints formatted results (path, score, snippet).
+
+Environment variables: `ZVEC_MODEL` (path to .gguf), `ZVEC_URL` (default localhost:4010), `TOPK` (default 5).
+
+#### Raw API Search
+
+For direct API access with pre-computed embeddings:
+
+```bash
 curl -s -X POST http://localhost:4010/search \
   -H 'Content-Type: application/json' \
   -d '{"embedding": [0.1, 0.2, ...], "topk": 5}'
@@ -86,6 +97,16 @@ Archive completed tasks from QMD to daily log:
 ```bash
 python3.10 scripts/qmd-compact.py
 ```
+
+### On Session End
+
+Run compaction automatically at the end of each session (or via cron/heartbeat):
+
+```bash
+python3.10 scripts/qmd-compact.py --auto
+```
+
+The `--auto` flag runs silently — no output unless tasks were actually compacted. Ideal for cron jobs or heartbeat hooks.
 
 ### Health Check
 

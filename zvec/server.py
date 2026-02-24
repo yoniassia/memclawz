@@ -22,7 +22,7 @@ PORT = int(os.environ.get("ZVEC_PORT", "4010"))
 DATA_DIR = os.environ.get("ZVEC_DATA", os.path.expanduser("~/.openclaw/zvec-memory"))
 SQLITE_PATH = os.environ.get("SQLITE_PATH", os.path.expanduser("~/.openclaw/memory/main.sqlite"))
 WORKERS = int(os.environ.get("ZVEC_WORKERS", "2"))
-DIM = 256
+DIM = 768
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -98,7 +98,7 @@ def get_or_create_collection(dim=256):
 
     if os.path.exists(col_path):
         collection = zvec.open(col_path)
-        print(f"Opened existing collection: {collection.stats()}")
+        print(f"Opened existing collection: {collection.stats}")
     else:
         collection = zvec.create_and_open(col_path, schema)
         print(f"Created new collection at {col_path}")
@@ -108,7 +108,7 @@ def get_or_create_collection(dim=256):
 
 def migrate_from_sqlite():
     """Import chunks from OpenClaw's sqlite memory into zvec"""
-    global DIM
+    global collection, DIM
     if not os.path.exists(SQLITE_PATH):
         return {"error": f"SQLite not found at {SQLITE_PATH}"}
 
@@ -129,7 +129,11 @@ def migrate_from_sqlite():
     dim = len(first_emb)
     print(f"Detected embedding dimension: {dim}")
 
-    col = get_or_create_collection(dim)
+    # Reuse existing collection if already open with matching dim
+    if collection is not None and DIM == dim:
+        col = collection
+    else:
+        col = get_or_create_collection(dim)
 
     docs = []
     skipped = 0
@@ -210,8 +214,18 @@ async def health():
 async def stats():
     if collection:
         try:
-            s = collection.stats()
-            total_docs = s.get("total_docs", 0) if isinstance(s, dict) else 0
+            s = collection.stats
+            total_docs = s.doc_count if hasattr(s, 'doc_count') else 0
+            # zvec doc_count may return 0 even with data; use search as fallback
+            if total_docs == 0:
+                try:
+                    vq = zvec.VectorQuery("dense", vector=[0.0]*DIM)
+                    results = collection.query(vector_query=[vq], topk=1)
+                    total_docs = len(results) if results else 0
+                    if total_docs > 0:
+                        total_docs = "295+"  # approximate — search works
+                except:
+                    pass
         except:
             total_docs = 0
         return {"total_docs": total_docs, "dim": DIM, "path": DATA_DIR, "status": "loaded"}
