@@ -37,7 +37,7 @@ for p in python3.10 python3.11 python3.12 python3; do
         fi
     fi
 done
-[ -z "$PYTHON" ] && fail "Python 3.10+ required. Install it first."
+[ -z "$PYTHON" ] && fail "Python 3.10+ required. On macOS: brew install python@3.12 | On Ubuntu: apt install python3.10"
 ok "Python: $PYTHON ($ver)"
 
 # pip

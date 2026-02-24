@@ -167,9 +167,14 @@ class Handler(BaseHTTPRequestHandler):
         
         elif url.path == "/stats":
             if collection:
-                self._json({"dim": DIM, "path": DATA_DIR, "status": "loaded"})
+                try:
+                    stats = collection.stats()
+                    total_docs = stats.get("total_docs", 0) if isinstance(stats, dict) else 0
+                except:
+                    total_docs = 0
+                self._json({"total_docs": total_docs, "dim": DIM, "path": DATA_DIR, "status": "loaded"})
             else:
-                self._json({"error": "no collection"}, 500)
+                self._json({"total_docs": 0, "dim": DIM, "path": DATA_DIR, "status": "uninitialized"})
         
         elif url.path == "/migrate":
             result = migrate_from_sqlite()
@@ -198,9 +203,15 @@ class Handler(BaseHTTPRequestHandler):
             if not docs_data:
                 self._json({"error": "missing docs"}, 400)
                 return
+            # Auto-init collection on first index call
+            global collection
+            if collection is None:
+                dim = len(docs_data[0]["embedding"]) if docs_data and "embedding" in docs_data[0] else 256
+                get_or_create_collection(dim)
             docs = []
             for d in docs_data:
-                doc = zvec.Doc(str(d["id"]))
+                doc_id = str(d["id"]).replace(":", "_").replace("/", "_").replace(" ", "_")
+                doc = zvec.Doc(doc_id)
                 doc.vectors["dense"] = d["embedding"]
                 doc.fields["text"] = d.get("text", "")
                 doc.fields["path"] = d.get("path", "")
