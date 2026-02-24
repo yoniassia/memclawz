@@ -228,7 +228,7 @@ Run manually, via cron, or as part of a heartbeat check.
 ### Prerequisites
 
 - **OpenClaw** installed and running ([docs.openclaw.ai](https://docs.openclaw.ai))
-- **Python 3.10–3.13** (Python 3.14 is not yet supported due to dependency compatibility issues with `zvec` and `numpy`)
+- **Python 3.10–3.13** on **x86_64 Linux** (Python 3.14 not yet supported; `zvec` only ships x86_64 Linux wheels — no macOS/ARM64/Windows support yet)
 - **pip** packages: `zvec`, `numpy`
 
 ### Quick Start (One Command)
