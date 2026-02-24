@@ -1,12 +1,12 @@
 {
   "name": "qmd-zvec",
   "version": "1.1.0",
-  "description": "Three-Speed Memory for OpenClaw Agents — QMD working memory + Zvec hybrid search + auto-compaction",
+  "description": "Long-term memory upgrade for OpenClaw agents — 3-speed architecture: QMD (<1ms working memory) + Zvec vector search (<10ms) + built-in memory enhancement. No API key required. Runs 100% locally.",
   "author": "yoniassia",
   "license": "MIT",
   "repository": "https://github.com/yoniassia/memclawz",
   "skills": ["skill/SKILL.md"],
-  "keywords": ["memory", "vector-search", "ai-agents", "qmd", "openclaw", "hnsw"],
+  "keywords": ["memory", "vector-search", "long-term-memory", "memory-upgrade", "embeddings", "fast-memory", "hnsw", "qmd", "openclaw", "ai-agents", "local-embeddings", "no-api-key"],
   "engines": {
     "python": ">=3.10"
   },

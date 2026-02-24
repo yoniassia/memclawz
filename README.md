@@ -5,6 +5,28 @@
 
 # memclawz — Three-Speed Memory for OpenClaw Agents
 
+> 🧠 **No API key needed. Runs 100% locally. Works offline.**
+> Give your OpenClaw agent 3-speed memory: QMD (<1ms) → Zvec (<10ms) → built-in (~1.7s)
+
+## Install
+
+```
+clawhub install yoniassia/memclawz
+```
+
+## Why memclawz?
+
+| Feature | memclawz | elite-longterm-memory | Built-in memory_search |
+|---|---|---|---|
+| Search speed | <10ms | ~50ms | ~1.7s |
+| API key needed | ❌ No | ✅ Yes | ✅ Yes |
+| 100% local/private | ✅ | ❌ | Depends |
+| Working memory (QMD) | ✅ | ❌ | ❌ |
+| Auto-compaction | ✅ | ❌ | ❌ |
+| One-command install | ✅ | ✅ | Built-in |
+
+---
+
 > **Give your OpenClaw agent a brain that actually remembers.**
 
 memclawz upgrades OpenClaw's built-in `memory_search` with a three-layer memory architecture: a fast working-memory scratchpad (QMD), a hybrid vector+keyword search engine (Zvec), and automatic compaction that keeps everything fresh.
