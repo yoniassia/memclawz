@@ -1,6 +1,25 @@
 ![Tests](https://img.shields.io/badge/tests-34%2F34_passing-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![OpenClaw](https://img.shields.io/badge/OpenClaw-compatible-orange)
+
+![Version](https://img.shields.io/badge/version-2.0.0-blue)
+
+## What's New in v2.0
+
+**3-layer hybrid memory architecture:**
+
+| Layer | Speed | Backend | Use Case |
+|-------|-------|---------|----------|
+| QMD | <1ms | JSON file | Hot tasks, active context |
+| Zvec | ~8ms | HNSW index | Existing indexed memories |
+| Mem0 | ~100ms | ChromaDB + auto-extraction | Smart memory with fact extraction |
+
+**New files:**
+- `gateway.py` — Unified API on port 4011 combining all 3 layers
+- `mem0_config.py` — Auto-configured Mem0 with Qdrant/ChromaDB/in-memory fallback
+- `/extract` endpoint — Auto-extract facts from conversations
+- `/ingest` endpoint — Extract + index in one call
+- Deduplication and cross-layer ranking
 ![Python](https://img.shields.io/badge/python-3.10+-blue)
 
 # memclawz — Three-Speed Memory for OpenClaw Agents
