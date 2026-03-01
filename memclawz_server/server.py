@@ -392,3 +392,71 @@ if __name__ == "__main__":
         print("No collection yet. Call GET /migrate or POST /index to create one.")
 
     uvicorn.run(app, host="127.0.0.1", port=PORT, log_level="info")
+
+
+# --- Causality Graph Integration (v3.0) ---
+
+from memclawz_server.causality_graph import CausalityGraph
+
+_graph: Optional[CausalityGraph] = None
+
+def get_graph() -> CausalityGraph:
+    global _graph
+    if _graph is None:
+        _graph = CausalityGraph()
+    return _graph
+
+
+class GraphAddRequest(BaseModel):
+    text: str
+    embedding: Optional[List[float]] = None
+    node_id: Optional[str] = None
+    source: str = ""
+    timestamp: Optional[float] = None
+    caused_by: Optional[List[str]] = None
+    causes: Optional[List[str]] = None
+    associations: Optional[List[str]] = None
+
+class GraphSearchRequest(BaseModel):
+    embedding: List[float]
+    topk: int = 5
+    similarity_threshold: float = 0.5
+    max_depth: int = 2
+
+class GraphKeywordRequest(BaseModel):
+    keywords: str
+    limit: int = 10
+
+
+@app.post("/graph/add")
+async def graph_add(req: GraphAddRequest):
+    g = get_graph()
+    nid = g.add_node(
+        text=req.text, embedding=req.embedding, node_id=req.node_id,
+        source=req.source, timestamp=req.timestamp,
+        caused_by=req.caused_by, causes=req.causes, associations=req.associations,
+    )
+    return {"id": nid, "status": "ok"}
+
+
+@app.post("/graph/search")
+async def graph_search(req: GraphSearchRequest):
+    g = get_graph()
+    result = g.multi_hop_search(
+        query_embedding=req.embedding, topk=req.topk,
+        similarity_threshold=req.similarity_threshold, max_depth=req.max_depth,
+    )
+    return result
+
+
+@app.post("/graph/keyword")
+async def graph_keyword(req: GraphKeywordRequest):
+    g = get_graph()
+    results = g.keyword_search(req.keywords, req.limit)
+    return {"results": results, "count": len(results)}
+
+
+@app.get("/graph/stats")
+async def graph_stats():
+    g = get_graph()
+    return g.stats()

@@ -1,9 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "QMD — Quick Memory Dump",
+  "title": "QMD \u2014 Quick Memory Dump",
   "description": "Structured working memory for OpenClaw agents. Layer 0 of the QMDZvec memory architecture.",
   "type": "object",
-  "required": ["tasks"],
+  "required": [
+    "tasks"
+  ],
   "properties": {
     "session_id": {
       "type": "string",
@@ -19,34 +21,89 @@
       "description": "Active and recently completed tasks",
       "items": {
         "type": "object",
-        "required": ["id", "status", "title"],
+        "required": [
+          "id",
+          "status",
+          "title"
+        ],
         "properties": {
-          "id": { "type": "string", "description": "Unique task identifier (kebab-case)" },
-          "status": { "type": "string", "enum": ["active", "blocked", "done"], "description": "Current task state" },
-          "title": { "type": "string", "description": "Human-readable task title" },
-          "context": { "type": "string", "description": "Background context for the task" },
+          "id": {
+            "type": "string",
+            "description": "Unique task identifier (kebab-case)"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "blocked",
+              "done"
+            ],
+            "description": "Current task state"
+          },
+          "title": {
+            "type": "string",
+            "description": "Human-readable task title"
+          },
+          "context": {
+            "type": "string",
+            "description": "Background context for the task"
+          },
           "progress": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "description": "Chronological progress notes"
           },
           "entities": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "description": "People, places, URLs, tools mentioned"
           },
           "decisions": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "description": "Why-we-chose-X decision log"
           },
           "blockers": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "description": "What's preventing progress"
           },
-          "next": { "type": "string", "description": "Next action to take" },
-          "outcome": { "type": "string", "description": "Final outcome (for done tasks)" }
+          "next": {
+            "type": "string",
+            "description": "Next action to take"
+          },
+          "outcome": {
+            "type": "string",
+            "description": "Final outcome (for done tasks)"
+          },
+          "caused_by": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "IDs of entries that caused this task/event"
+          },
+          "causes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "IDs of entries this task/event caused"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Retrieval confidence score (0-1)"
+          }
         }
       }
     },
@@ -54,9 +111,24 @@
       "type": "object",
       "description": "Cross-task entity tracking",
       "properties": {
-        "people": { "type": "array", "items": { "type": "string" } },
-        "urls": { "type": "array", "items": { "type": "string" } },
-        "credentials": { "type": "array", "items": { "type": "string" } }
+        "people": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "urls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "credentials": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "updated_at": {

@@ -1,12 +1,27 @@
 {
   "name": "qmd-zvec",
-  "version": "1.2.0",
-  "description": "Long-term memory upgrade for OpenClaw agents — 3-speed architecture: QMD (<1ms working memory) + Zvec vector search (<10ms) + built-in memory enhancement. No API key required. Runs 100% locally.",
+  "version": "3.0.0",
+  "description": "Long-term memory upgrade for OpenClaw agents \u2014 3-speed architecture: QMD (<1ms working memory) + Zvec vector search (<10ms) + Causality Graph (multi-hop causal retrieval). No API key required. Runs 100% locally.",
   "author": "yoniassia",
   "license": "MIT",
   "repository": "https://github.com/yoniassia/memclawz",
-  "skills": ["skill/SKILL.md"],
-  "keywords": ["memory", "vector-search", "long-term-memory", "memory-upgrade", "embeddings", "fast-memory", "hnsw", "qmd", "openclaw", "ai-agents", "local-embeddings", "no-api-key"],
+  "skills": [
+    "skill/SKILL.md"
+  ],
+  "keywords": [
+    "memory",
+    "vector-search",
+    "long-term-memory",
+    "memory-upgrade",
+    "embeddings",
+    "fast-memory",
+    "hnsw",
+    "qmd",
+    "openclaw",
+    "ai-agents",
+    "local-embeddings",
+    "no-api-key"
+  ],
   "engines": {
     "python": ">=3.10,<3.14"
   },
@@ -20,7 +35,8 @@
     "zvec-server": "memclawz_server/server.py",
     "file-watcher": "memclawz_server/file_watcher.py",
     "fleet-server": "memclawz_server/fleet_server.py",
-    "compaction": "scripts/qmd-compact.py"
+    "compaction": "scripts/qmd-compact.py",
+    "causality-graph": "memclawz_server/causality_graph.py"
   },
   "ports": {
     "zvec": 4010,

@@ -1,25 +1,26 @@
-![Tests](https://img.shields.io/badge/tests-34%2F34_passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-45%2F45_passing-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![OpenClaw](https://img.shields.io/badge/OpenClaw-compatible-orange)
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-3.0.0-blue)
 
-## What's New in v2.0
+## What's New in v3.0
 
-**3-layer hybrid memory architecture:**
+**Causality Graph replaces Mem0** — informed by [AMA-Bench](https://arxiv.org/abs/2602.22769) (Zhao et al., 2026), where Mem0 scored 0.2104 while causality graph + tool-augmented retrieval scored 0.5722.
 
 | Layer | Speed | Backend | Use Case |
 |-------|-------|---------|----------|
-| QMD | <1ms | JSON file | Hot tasks, active context |
+| QMD | <1ms | JSON file | Hot tasks, active context, causal fields |
 | Zvec | ~8ms | HNSW index | Existing indexed memories |
-| Mem0 | ~100ms | ChromaDB + auto-extraction | Smart memory with fact extraction |
+| Causality Graph | ~15ms | SQLite + numpy | Multi-hop causal retrieval, keyword fallback |
 
-**New files:**
-- `gateway.py` — Unified API on port 4011 combining all 3 layers
-- `mem0_config.py` — Auto-configured Mem0 with Qdrant/ChromaDB/in-memory fallback
-- `/extract` endpoint — Auto-extract facts from conversations
-- `/ingest` endpoint — Extract + index in one call
-- Deduplication and cross-layer ranking
+**New in v3.0:**
+- `causality_graph.py` — SQLite-backed directed graph with causality/association/similarity edges
+- Multi-hop retrieval: similarity → graph traversal → keyword fallback
+- Self-evaluation gate: confidence scoring triggers fallback when retrieval is uncertain
+- QMD causal fields: `caused_by`, `causes`, `confidence` on task entries
+- 4 new API endpoints: `/graph/add`, `/graph/search`, `/graph/keyword`, `/graph/stats`
+- Mini AMA-Bench test suite with 10 synthetic trajectories
 ![Python](https://img.shields.io/badge/python-3.10+-blue)
 
 # memclawz — Three-Speed Memory for OpenClaw Agents
@@ -601,7 +602,7 @@ With this pattern on a workspace of 833 files / 17,461 chunks:
 - [x] Direct file watcher (`memclawz_server/file_watcher.py`)
 - [x] Cross-agent memory sharing (Fleet Memory)
 - [x] ClawHub package manifest (`clawhub.json`)
-- [ ] Neo4j knowledge graph layer (entity extraction → graph)
+- [x] Causality Graph layer (replaces Mem0, informed by AMA-Bench)
 - [ ] WebSocket real-time memory subscriptions
 
 ## Contributing
@@ -611,6 +612,33 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 ## License
 
 MIT — use it, fork it, improve it.
+
+## Research
+
+Architecture informed by:
+
+> **"AMA-Bench: Evaluating Long-Horizon Memory for Agentic Applications"** (Zhao et al., 2026). [arxiv.org/abs/2602.22769](https://arxiv.org/abs/2602.22769)
+
+Key finding: Mem0 scored 0.2104 on real-world agent memory tasks, while their AMA-Agent with causality graph + tool-augmented retrieval scored 0.5722 (2.7× improvement). memclawz v3.0 implements the core ideas: causality graph for memory construction, multi-hop retrieval with edge traversal, and self-evaluation gating.
+
+## Benchmarking
+
+Run the full test suite including the mini AMA-Bench:
+
+```bash
+python3.10 -m pytest tests/test_memory_eval.py -v
+```
+
+The benchmark creates 10 synthetic agent trajectories and measures recall, causal inference, and state updating accuracy, comparing v2 (similarity-only) vs v3 (causality graph).
+
+### Causality Graph API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/graph/add` | Add node with optional causal links `{text, embedding, caused_by, causes, associations}` |
+| POST | `/graph/search` | Multi-hop search `{embedding, topk, similarity_threshold, max_depth}` |
+| POST | `/graph/keyword` | Keyword search fallback `{keywords, limit}` |
+| GET | `/graph/stats` | Node and edge counts |
 
 ## Credits
 

@@ -1,6 +1,6 @@
 ---
 name: memclawz
-description: "Long-term memory upgrade for OpenClaw agents — 3-speed architecture: QMD (<1ms working memory) + Zvec vector search (<10ms) + built-in memory enhancement. No API key required. Runs 100% locally."
+description: "Long-term memory upgrade for OpenClaw agents — 3-speed architecture: QMD (<1ms working memory) + Zvec vector search (<10ms) + Causality Graph (multi-hop causal retrieval). No API key required. Runs 100% locally."
 metadata: {"openclaw":{"emoji":"🧠","requires":{"bins":["python3.10"]}}}
 ---
 
@@ -48,6 +48,7 @@ This single command will:
 |-------|-------|------|
 | QMD | <1ms | Structured JSON working memory — tasks, decisions, entities |
 | Zvec | <10ms | HNSW vector + BM25 keyword hybrid search over all indexed memory |
+| Causality Graph | ~15ms | Multi-hop causal retrieval with keyword fallback |
 | MEMORY.md | ~50ms | Curated long-term memory (OpenClaw built-in) |
 
 ## Agent Protocol
@@ -144,6 +145,35 @@ curl -s http://localhost:4010/health
 | POST | `/search` | Search `{"embedding": [...], "topk": N}` |
 | POST | `/index` | Index `{"docs": [{"id", "embedding", "text", "path"}]}` |
 | GET | `/migrate` | One-time SQLite import |
+| POST | `/graph/add` | Add node with causal links `{text, embedding, caused_by, causes, associations}` |
+| POST | `/graph/search` | Multi-hop search `{embedding, topk, similarity_threshold, max_depth}` |
+| POST | `/graph/keyword` | Keyword search fallback `{keywords, limit}` |
+| GET | `/graph/stats` | Causality graph node/edge counts |
+
+## Causality Graph (v3.0)
+
+The causality graph stores events/facts as nodes with three edge types:
+- **Causality** (directed): A caused B
+- **Association** (undirected): related in same turn
+- **Similarity** (embedding-based): semantically similar
+
+### QMD Causal Fields
+Tasks now support optional causal fields (backward compatible):
+```json
+{
+  "id": "deploy-v3",
+  "status": "active",
+  "title": "Deploy v3",
+  "caused_by": ["research-ama-bench"],
+  "causes": ["testing-v3"],
+  "confidence": 0.85
+}
+```
+
+### Multi-hop Retrieval
+1. Initial similarity search (top-K)
+2. Confidence check — if low, traverse causal/association edges (depth 2)
+3. If still insufficient, keyword search fallback
 
 ## AGENTS.md Integration
 
