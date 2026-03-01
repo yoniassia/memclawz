@@ -71,8 +71,8 @@ signal.signal(signal.SIGINT, _shutdown)
 # --- Pydantic models ---
 
 class DocInput(BaseModel):
-    id: str
-    embedding: List[float]
+    id: Optional[str] = None
+    embedding: Optional[List[float]] = None
     text: str = ""
     path: str = ""
     source: str = ""
@@ -80,13 +80,16 @@ class DocInput(BaseModel):
     end_line: int = 0
 
 class IndexRequest(BaseModel):
-    docs: List[DocInput]
+    docs: Optional[List[DocInput]] = None
+    text: Optional[str] = None
+    meta: Optional[dict] = None
 
 class IndexResponse(BaseModel):
     indexed: int
 
 class SearchRequest(BaseModel):
-    embedding: List[float]
+    embedding: Optional[List[float]] = None
+    text: Optional[str] = None
     topk: int = 10
     filter: Optional[str] = None
 
@@ -328,16 +331,51 @@ async def root():
 
 @app.post("/search")
 async def search_endpoint(req: SearchRequest):
-    if not req.embedding:
-        raise HTTPException(status_code=400, detail="missing embedding")
-    result = do_search(req.embedding, req.topk, req.filter)
+    if req.embedding:
+        emb = req.embedding
+    elif req.text:
+        embedder = get_embedder()
+        if not embedder:
+            raise HTTPException(status_code=503, detail="Embedding model not available. Provide 'embedding' directly.")
+        emb = embedder.embed_text(req.text)
+    else:
+        raise HTTPException(status_code=400, detail="Provide 'text' or 'embedding'")
+    result = do_search(emb, req.topk, req.filter)
     return result
 
 
 @app.post("/index")
 async def index_endpoint(req: IndexRequest):
+    import hashlib
+
+    # Support simple {"text": "...", "meta": {...}} shorthand
+    if not req.docs and req.text:
+        embedder = get_embedder()
+        if not embedder:
+            raise HTTPException(status_code=503, detail="Embedding model not available. Provide 'docs' with embeddings.")
+        emb = embedder.embed_text(req.text)
+        meta = req.meta or {}
+        doc_id = hashlib.sha256(f"{req.text}{time.time()}".encode()).hexdigest()[:16]
+        req.docs = [DocInput(
+            id=doc_id, embedding=emb, text=req.text,
+            path=meta.get("path", ""), source=meta.get("source", "manual"),
+            start_line=meta.get("start_line", 0), end_line=meta.get("end_line", 0),
+        )]
+
     if not req.docs:
-        raise HTTPException(status_code=400, detail="missing docs")
+        raise HTTPException(status_code=400, detail="Provide 'docs' list or 'text'")
+
+    # Auto-embed any docs missing embeddings
+    _embedder = None
+    for d in req.docs:
+        if not d.embedding and d.text:
+            if _embedder is None:
+                _embedder = get_embedder()
+                if not _embedder:
+                    raise HTTPException(status_code=503, detail="Embedding model not available for auto-embed.")
+            d.embedding = _embedder.embed_text(d.text)
+        if not d.id:
+            d.id = hashlib.sha256(f"{d.text}{time.time()}".encode()).hexdigest()[:16]
 
     global collection, DIM
 
